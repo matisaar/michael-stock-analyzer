@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Michael's Stock Analyzer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; min-height: 100vh; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        h1 { text-align: center; color: #00d374; font-size: 28px; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
+        .api-box { background: #111; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center; }
+        .api-box a { color: #00d374; }
+        .api-box input { padding: 10px 16px; width: 320px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; margin: 10px 5px 0 0; }
+        .api-box button { padding: 10px 20px; background: #00d374; color: #000; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .search-section { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
+        .search-input { padding: 14px 20px; width: 350px; background: #111; border: 1px solid #333; border-radius: 10px; color: #fff; font-size: 16px; }
+        .search-input:focus { outline: none; border-color: #00d374; }
+        .btn { padding: 14px 28px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
+        .btn-primary { background: #00d374; color: #000; }
+        .btn:disabled { opacity: 0.5; }
+        .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stock-card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.2s; }
+        .stock-card:hover { border-color: #00d374; transform: translateY(-2px); }
+        .stock-card h3 { font-size: 18px; margin-bottom: 4px; }
+        .stock-card .ticker { color: #666; font-size: 14px; }
+        .stock-card .price { font-size: 24px; font-weight: 700; margin-top: 12px; }
+        .stock-card .change { font-size: 14px; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-top: 8px; }
+        .stock-card .change.up { background: rgba(0,211,116,0.15); color: #00d374; }
+        .stock-card .change.down { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .detail-view { display: none; }
+        .detail-view.active { display: block; }
+        .back-btn { background: #222; color: #fff; margin-bottom: 20px; border: 1px solid #333; padding: 12px 24px; border-radius: 10px; cursor: pointer; }
+        .alert { background: linear-gradient(135deg, rgba(0,211,116,0.1), rgba(0,211,116,0.05)); border: 1px solid #00d374; border-radius: 12px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 16px; }
+        .alert h3 { color: #00d374; }
+        .alert p { color: #888; font-size: 14px; }
+        .header-card { background: #111; border-radius: 16px; padding: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .header-left { display: flex; align-items: center; gap: 20px; }
+        .logo { width: 64px; height: 64px; background: linear-gradient(135deg, #00d374, #00a060); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; }
+        .header-info h2 { font-size: 22px; }
+        .header-info span { color: #666; font-size: 14px; }
+        .header-right .price { font-size: 32px; font-weight: 700; }
+        .header-right .change { font-size: 16px; padding: 6px 14px; border-radius: 8px; display: inline-block; margin-top: 8px; }
+        .fair-value-card { background: linear-gradient(135deg, #0d3320, #0a1a10); border: 1px solid #00d374; border-radius: 16px; padding: 24px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px; }
+        .fair-value-card h3 { color: #00d374; }
+        .fair-value-card .upside { font-size: 36px; font-weight: 700; color: #00d374; }
+        .fair-value-card .details { display: flex; gap: 30px; flex-wrap: wrap; }
+        .fair-value-card .detail-item label { display: block; color: #666; font-size: 11px; text-transform: uppercase; }
+        .fair-value-card .detail-item span { font-size: 20px; font-weight: 600; }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .card { background: #111; border-radius: 14px; padding: 20px; }
+        .card-title { color: #666; font-size: 13px; text-transform: uppercase; margin-bottom: 16px; }
+        .metric-row { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #1a1a1a; }
+        .metric-row:last-child { border-bottom: none; }
+        .metric-row .label { color: #888; }
+        .metric-row .value { font-weight: 600; }
+        .metric-row .value.good { color: #00d374; }
+        .metric-row .value.bad { color: #ff5252; }
+        .score-card { text-align: center; }
+        .score-ring { width: 130px; height: 130px; margin: 0 auto 16px; position: relative; }
+        .score-ring svg { transform: rotate(-90deg); }
+        .score-ring circle { fill: none; stroke-width: 10; }
+        .score-ring .bg { stroke: #222; }
+        .score-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+        .score-text .num { font-size: 32px; font-weight: 700; }
+        .score-text .label { font-size: 12px; color: #666; }
+        .checklist { list-style: none; text-align: left; }
+        .checklist li { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 13px; }
+        .checklist .icon { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; }
+        .checklist .icon.pass { background: #00d374; color: #000; }
+        .checklist .icon.fail { background: #ff5252; color: #fff; }
+        .checklist .icon.warn { background: #ffb800; color: #000; }
+        .loading { text-align: center; padding: 60px; }
+        .spinner { width: 40px; height: 40px; border: 3px solid #222; border-top-color: #00d374; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .error { background: rgba(255,82,82,0.1); border: 1px solid #ff5252; color: #ff5252; padding: 16px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
+        footer { text-align: center; color: #444; padding: 30px; font-size: 13px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📈 Michael's Stock Analyzer</h1>
+        <p class="subtitle">Investment analysis with Michael's criteria (ROA/ROE >10%, Cash vs Debt, Fair Value)</p>
+        
+        <div class="api-box">
+            <strong>🔑 Free API Key Required</strong> - Get yours free at <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">financialmodelingprep.com</a> (250 calls/day)<br>
+            <input type="text" id="apiKey" placeholder="Paste your FMP API key here...">
+            <button onclick="saveKey()">Save Key</button>
+        </div>
+        
+        <div class="search-section">
+            <input type="text" class="search-input" id="searchInput" placeholder="Enter stock ticker (AAPL, TSLA, CRCT...)">
+            <button class="btn btn-primary" onclick="analyze()">🔍 Analyze</button>
+        </div>
+        
+        <div id="error" class="error" style="display:none;"></div>
+        <div id="loading" class="loading" style="display:none;"><div class="spinner"></div><p>Loading...</p></div>
+        
+        <div id="grid">
+            <h2 style="color:#888;font-size:15px;margin-bottom:16px;">📊 Click a stock to analyze</h2>
+            <div class="stock-grid" id="stockGrid"></div>
+        </div>
+        
+        <div id="detail" class="detail-view"></div>
+        
+        <footer>Built for Michael • <span id="update"></span></footer>
+    </div>
+
+<script>
+var KEY = localStorage.getItem('fmp_key') || '';
+var API = 'https://financialmodelingprep.com/api/v3';
+
+var STOCKS = [
+    {s:'AAPL',n:'Apple'},
+    {s:'MSFT',n:'Microsoft'},
+    {s:'GOOGL',n:'Alphabet'},
+    {s:'AMZN',n:'Amazon'},
+    {s:'TSLA',n:'Tesla'},
+    {s:'META',n:'Meta'},
+    {s:'NVDA',n:'NVIDIA'},
+    {s:'JPM',n:'JPMorgan'},
+    {s:'V',n:'Visa'},
+    {s:'WMT',n:'Walmart'},
+    {s:'NFLX',n:'Netflix'},
+    {s:'CRCT',n:'Cricut'}
+];
+
+if(KEY) document.getElementById('apiKey').value = KEY;
+
+function saveKey() {
+    KEY = document.getElementById('apiKey').value.trim();
+    if(KEY) { localStorage.setItem('fmp_key',KEY); alert('Saved! Now click a stock.'); load(); }
+}
+
+function apiFetch(ep) {
+    if(!KEY) { return Promise.resolve(null); }
+    var url = API + ep + (ep.indexOf('?') >= 0 ? '&' : '?') + 'apikey=' + KEY;
+    return fetch(url).then(function(r) {
+        if(!r.ok) throw new Error();
+        return r.json();
+    }).catch(function() { return null; });
+}
+
+function load() {
+    var g = document.getElementById('stockGrid');
+    if(!KEY) {
+        var html = '';
+        for(var i = 0; i < STOCKS.length; i++) {
+            var s = STOCKS[i];
+            html += '<div class="stock-card" onclick="analyze(\'' + s.s + '\')"><h3>' + s.n + '</h3><span class="ticker">' + s.s + '</span><div class="price">Enter API key</div></div>';
+        }
+        g.innerHTML = html;
+        return;
+    }
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px"><div class="spinner"></div></div>';
+    
+    var tickers = [];
+    for(var j = 0; j < STOCKS.length; j++) tickers.push(STOCKS[j].s);
+    
+    apiFetch('/quote/' + tickers.join(',')).then(function(q) {
+        if(!q || !q.length) {
+            var html2 = '';
+            for(var k = 0; k < STOCKS.length; k++) {
+                var st = STOCKS[k];
+                html2 += '<div class="stock-card" onclick="analyze(\'' + st.s + '\')"><h3>' + st.n + '</h3><span class="ticker">' + st.s + '</span><div class="price">Click to load</div></div>';
+            }
+            g.innerHTML = html2;
+            return;
+        }
+        var html3 = '';
+        for(var m = 0; m < q.length; m++) {
+            var x = q[m];
+            var chg = x.changesPercentage || 0;
+            html3 += '<div class="stock-card" onclick="analyze(\'' + x.symbol + '\')"><h3>' + (x.name || x.symbol) + '</h3><span class="ticker">' + x.symbol + '</span><div class="price">$' + (x.price ? x.price.toFixed(2) : '--') + '</div><span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span></div>';
+        }
+        g.innerHTML = html3;
+        document.getElementById('update').textContent = new Date().toLocaleTimeString();
+    });
+}
+
+function analyze(sym) {
+    sym = sym || document.getElementById('searchInput').value.trim().toUpperCase();
+    if(!sym) { err('Enter ticker'); return; }
+    if(!KEY) { err('Enter API key first'); return; }
+    
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('error').style.display = 'none';
+    document.getElementById('grid').style.display = 'none';
+    document.getElementById('detail').className = 'detail-view';
+    
+    Promise.all([
+        apiFetch('/quote/' + sym),
+        apiFetch('/profile/' + sym),
+        apiFetch('/ratios-ttm/' + sym),
+        apiFetch('/balance-sheet-statement/' + sym + '?limit=1'),
+        apiFetch('/cash-flow-statement/' + sym + '?limit=1'),
+        apiFetch('/discounted-cash-flow/' + sym)
+    ]).then(function(results) {
+        var quote = results[0];
+        var profile = results[1];
+        var ratios = results[2];
+        var bs = results[3];
+        var cf = results[4];
+        var dcf = results[5];
+        
+        document.getElementById('loading').style.display = 'none';
+        
+        if(!quote || !quote.length) { err('No data for ' + sym); document.getElementById('grid').style.display = 'block'; return; }
+        
+        var q = quote[0];
+        var p = (profile && profile[0]) || {};
+        var r = (ratios && ratios[0]) || {};
+        var b = (bs && bs[0]) || {};
+        var c = (cf && cf[0]) || {};
+        
+        var price = q.price || 0;
+        var chg = q.changesPercentage || 0;
+        var name = p.companyName || q.name || sym;
+        
+        var pe = r.peRatioTTM || 0;
+        var ps = r.priceToSalesRatioTTM || 0;
+        var pb = r.priceBookValueRatioTTM || 0;
+        var roa = (r.returnOnAssetsTTM || 0) * 100;
+        var roe = (r.returnOnEquityTTM || 0) * 100;
+        var pm = (r.netProfitMarginTTM || 0) * 100;
+        var gm = (r.grossProfitMarginTTM || 0) * 100;
+        
+        var cash = b.cashAndCashEquivalents || 0;
+        var debt = b.totalDebt || 0;
+        var fcf = c.freeCashFlow || 0;
+        
+        var fv = (dcf && dcf[0] && dcf[0].dcf) ? dcf[0].dcf : price * 1.3;
+        var up = price > 0 ? ((fv - price) / price * 100) : 0;
+        
+        var sc = 0;
+        var ch = [];
+        
+        if(roa > 10) { sc += 15; ch.push({i:'pass', t:'ROA ' + roa.toFixed(1) + '%'}); }
+        else if(roa > 5) { sc += 7; ch.push({i:'warn', t:'ROA ' + roa.toFixed(1) + '%'}); }
+        else { ch.push({i:'fail', t:'ROA ' + roa.toFixed(1) + '%'}); }
+        
+        if(roe > 10) { sc += 15; ch.push({i:'pass', t:'ROE ' + roe.toFixed(1) + '%'}); }
+        else if(roe > 5) { sc += 7; ch.push({i:'warn', t:'ROE ' + roe.toFixed(1) + '%'}); }
+        else { ch.push({i:'fail', t:'ROE ' + roe.toFixed(1) + '%'}); }
+        
+        if(up > 30) { sc += 20; ch.push({i:'pass', t: up.toFixed(0) + '% undervalued'}); }
+        else if(up > 10) { sc += 10; ch.push({i:'warn', t: up.toFixed(0) + '% undervalued'}); }
+        else if(up > 0) { sc += 5; ch.push({i:'warn', t: up.toFixed(0) + '% upside'}); }
+        else { ch.push({i:'fail', t:'Overvalued'}); }
+        
+        if(cash >= debt) { sc += 15; ch.push({i:'pass', t:'Cash > Debt'}); }
+        else { ch.push({i:'fail', t:'Debt > Cash'}); }
+        
+        if(pm > 15) { sc += 15; ch.push({i:'pass', t:'Margin ' + pm.toFixed(1) + '%'}); }
+        else if(pm > 5) { sc += 8; ch.push({i:'warn', t:'Margin ' + pm.toFixed(1) + '%'}); }
+        else { ch.push({i:'fail', t:'Margin ' + pm.toFixed(1) + '%'}); }
+        
+        if(ps > 0 && ps < 2) { sc += 10; ch.push({i:'pass', t:'P/S ' + ps.toFixed(2) + 'x'}); }
+        else if(ps > 0) { ch.push({i:'warn', t:'P/S ' + ps.toFixed(2) + 'x'}); }
+        
+        if(fcf > 0) { sc += 10; ch.push({i:'pass', t:'FCF ' + fmt(fcf)}); }
+        else { ch.push({i:'fail', t:'Negative FCF'}); }
+        
+        var col = sc >= 60 ? '#00d374' : (sc >= 40 ? '#ffb800' : '#ff5252');
+        var circ = 2 * Math.PI * 55;
+        var off = circ - (sc / 100) * circ;
+        
+        var alertHtml = '';
+        if(up > 20) {
+            alertHtml = '<div class="alert"><span style="font-size:28px">💎</span><div><h3>Opportunity!</h3><p>' + sym + ' is ' + up.toFixed(0) + '% below fair value</p></div></div>';
+        }
+        
+        var checklistHtml = '';
+        for(var n = 0; n < ch.length; n++) {
+            var item = ch[n];
+            var icon = item.i === 'pass' ? '✓' : (item.i === 'warn' ? '!' : '✗');
+            checklistHtml += '<li><span class="icon ' + item.i + '">' + icon + '</span>' + item.t + '</li>';
+        }
+        
+        document.getElementById('detail').innerHTML = 
+            '<button class="back-btn" onclick="back()">← Back</button>' +
+            alertHtml +
+            '<div class="header-card">' +
+                '<div class="header-left">' +
+                    '<div class="logo">' + sym.slice(0,4) + '</div>' +
+                    '<div class="header-info"><h2>' + name + '</h2><span>' + sym + ' • ' + (p.industry || 'N/A') + '</span></div>' +
+                '</div>' +
+                '<div class="header-right">' +
+                    '<div class="price">$' + price.toFixed(2) + '</div>' +
+                    '<span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="fair-value-card">' +
+                '<div><h3>📈 Upside</h3><div class="upside">' + (up > 0 ? '+' : '') + up.toFixed(0) + '%</div></div>' +
+                '<div class="details">' +
+                    '<div class="detail-item"><label>Current</label><span>$' + price.toFixed(2) + '</span></div>' +
+                    '<div class="detail-item"><label>Fair Value</label><span style="color:#00d374">$' + fv.toFixed(2) + '</span></div>' +
+                    '<div class="detail-item"><label>52W</label><span>$' + (q.yearLow || 0).toFixed(0) + '-$' + (q.yearHigh || 0).toFixed(0) + '</span></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="metrics-grid">' +
+                '<div class="card"><div class="card-title">💰 Valuation</div>' +
+                    '<div class="metric-row"><span class="label">P/E</span><span class="value">' + (pe > 0 ? pe.toFixed(1) + 'x' : 'N/A') + '</span></div>' +
+                    '<div class="metric-row"><span class="label">P/S</span><span class="value ' + (ps > 0 && ps < 3 ? 'good' : '') + '">' + (ps > 0 ? ps.toFixed(2) + 'x' : 'N/A') + '</span></div>' +
+                    '<div class="metric-row"><span class="label">P/B</span><span class="value">' + (pb > 0 ? pb.toFixed(2) + 'x' : 'N/A') + '</span></div>' +
+                    '<div class="metric-row"><span class="label">Mkt Cap</span><span class="value">' + fmt(q.marketCap) + '</span></div>' +
+                '</div>' +
+                '<div class="card"><div class="card-title">📊 Profitability</div>' +
+                    '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + (pm > 10 ? 'good' : (pm < 0 ? 'bad' : '')) + '">' + pm.toFixed(1) + '%</span></div>' +
+                    '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + gm.toFixed(1) + '%</span></div>' +
+                    '<div class="metric-row"><span class="label">ROA</span><span class="value ' + (roa > 10 ? 'good' : '') + '">' + roa.toFixed(1) + '%</span></div>' +
+                    '<div class="metric-row"><span class="label">ROE</span><span class="value ' + (roe > 10 ? 'good' : '') + '">' + roe.toFixed(1) + '%</span></div>' +
+                '</div>' +
+                '<div class="card"><div class="card-title">🏦 Balance Sheet</div>' +
+                    '<div class="metric-row"><span class="label">Cash</span><span class="value good">' + fmt(cash) + '</span></div>' +
+                    '<div class="metric-row"><span class="label">Debt</span><span class="value ' + (debt > cash ? 'bad' : '') + '">' + fmt(debt) + '</span></div>' +
+                    '<div class="metric-row"><span class="label">Net</span><span class="value ' + (cash >= debt ? 'good' : 'bad') + '">' + fmt(cash - debt) + '</span></div>' +
+                    '<div class="metric-row"><span class="label">FCF</span><span class="value ' + (fcf > 0 ? 'good' : 'bad') + '">' + fmt(fcf) + '</span></div>' +
+                '</div>' +
+                '<div class="card score-card"><div class="card-title">⭐ Score</div>' +
+                    '<div class="score-ring">' +
+                        '<svg width="130" height="130"><circle class="bg" cx="65" cy="65" r="55"></circle><circle cx="65" cy="65" r="55" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
+                        '<div class="score-text"><div class="num" style="color:' + col + '">' + sc + '</div><div class="label">/100</div></div>' +
+                    '</div>' +
+                    '<ul class="checklist">' + checklistHtml + '</ul>' +
+                '</div>' +
+            '</div>';
+        
+        document.getElementById('detail').className = 'detail-view active';
+        document.getElementById('update').textContent = new Date().toLocaleTimeString();
+    });
+}
+
+function back() {
+    document.getElementById('detail').className = 'detail-view';
+    document.getElementById('grid').style.display = 'block';
+}
+
+function err(m) {
+    document.getElementById('error').textContent = m;
+    document.getElementById('error').style.display = 'block';
+}
+
+function fmt(n) {
+    if(!n && n !== 0) return 'N/A';
+    if(Math.abs(n) >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T';
+    if(Math.abs(n) >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+    if(Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
+    return '$' + n.toLocaleString();
+}
+
+document.getElementById('searchInput').addEventListener('keypress', function(e) {
+    if(e.key === 'Enter') analyze();
+});
+
+document.addEventListener('DOMContentLoaded', load);
+</script>
+</body>
+</html>
