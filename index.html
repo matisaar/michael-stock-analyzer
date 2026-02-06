@@ -10,16 +10,22 @@
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         h1 { text-align: center; color: #00d374; font-size: 28px; margin-bottom: 8px; }
         .subtitle { text-align: center; color: #666; margin-bottom: 20px; }
-        .api-box { background: #111; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 24px; text-align: center; }
+        .api-box { background: #111; border: 1px solid #333; border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+        .api-box h3 { color: #00d374; margin-bottom: 12px; font-size: 14px; }
+        .api-row { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+        .api-row label { color: #888; font-size: 13px; min-width: 120px; }
+        .api-box input { padding: 8px 12px; flex: 1; min-width: 200px; background: #0a0a0a; border: 1px solid #333; border-radius: 6px; color: #fff; font-size: 13px; }
+        .api-box button { padding: 8px 16px; background: #00d374; color: #000; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
         .api-box a { color: #00d374; }
-        .api-box input { padding: 10px 16px; width: 320px; background: #0a0a0a; border: 1px solid #333; border-radius: 8px; color: #fff; margin: 10px 5px 0 0; }
-        .api-box button { padding: 10px 20px; background: #00d374; color: #000; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        .api-status { font-size: 12px; color: #666; margin-top: 8px; }
+        .api-status.connected { color: #00d374; }
         .search-section { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 24px; }
         .search-input { padding: 14px 20px; width: 350px; background: #111; border: 1px solid #333; border-radius: 10px; color: #fff; font-size: 16px; }
         .search-input:focus { outline: none; border-color: #00d374; }
         .btn { padding: 14px 28px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; }
         .btn-primary { background: #00d374; color: #000; }
-        .btn:disabled { opacity: 0.5; }
+        .btn-secondary { background: #222; color: #fff; border: 1px solid #333; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .stock-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .stock-card { background: #111; border: 1px solid #222; border-radius: 16px; padding: 20px; cursor: pointer; transition: all 0.2s; }
         .stock-card:hover { border-color: #00d374; transform: translateY(-2px); }
@@ -29,6 +35,10 @@
         .stock-card .change { font-size: 14px; padding: 4px 10px; border-radius: 6px; display: inline-block; margin-top: 8px; }
         .stock-card .change.up { background: rgba(0,211,116,0.15); color: #00d374; }
         .stock-card .change.down { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .stock-card .score-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; margin-top: 8px; margin-left: 8px; }
+        .stock-card .score-badge.high { background: rgba(0,211,116,0.15); color: #00d374; }
+        .stock-card .score-badge.medium { background: rgba(255,184,0,0.15); color: #ffb800; }
+        .stock-card .score-badge.low { background: rgba(255,82,82,0.15); color: #ff5252; }
         .detail-view { display: none; }
         .detail-view.active { display: block; }
         .back-btn { background: #222; color: #fff; margin-bottom: 20px; border: 1px solid #333; padding: 12px 24px; border-radius: 10px; cursor: pointer; }
@@ -48,6 +58,9 @@
         .fair-value-card .details { display: flex; gap: 30px; flex-wrap: wrap; }
         .fair-value-card .detail-item label { display: block; color: #666; font-size: 11px; text-transform: uppercase; }
         .fair-value-card .detail-item span { font-size: 20px; font-weight: 600; }
+        .recommendation-card { background: #111; border-radius: 16px; padding: 20px; margin-bottom: 20px; display: flex; align-items: center; gap: 20px; }
+        .recommendation-card .signal { font-size: 24px; font-weight: 700; }
+        .recommendation-card .reason { color: #888; }
         .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
         .card { background: #111; border-radius: 14px; padding: 20px; }
         .card-title { color: #666; font-size: 13px; text-transform: uppercase; margin-bottom: 16px; }
@@ -57,6 +70,7 @@
         .metric-row .value { font-weight: 600; }
         .metric-row .value.good { color: #00d374; }
         .metric-row .value.bad { color: #ff5252; }
+        .metric-row .value.warn { color: #ffb800; }
         .score-card { text-align: center; }
         .score-ring { width: 130px; height: 130px; margin: 0 auto 16px; position: relative; }
         .score-ring svg { transform: rotate(-90deg); }
@@ -76,382 +90,304 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .error { background: rgba(255,82,82,0.1); border: 1px solid #ff5252; color: #ff5252; padding: 16px; border-radius: 10px; margin-bottom: 20px; text-align: center; }
         footer { text-align: center; color: #444; padding: 30px; font-size: 13px; }
+        .backend-badge { display: inline-block; background: #1a1a1a; padding: 4px 8px; border-radius: 4px; font-size: 11px; color: #00d374; margin-left: 8px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📈 Michael's Stock Analyzer</h1>
+        <h1>📈 Michael's Stock Analyzer <span class="backend-badge">Python Backend</span></h1>
         <p class="subtitle">Investment analysis with Michael's criteria (ROA/ROE >10%, Cash vs Debt, Fair Value)</p>
         
         <div class="api-box">
-            <strong>🔑 Free API Key Required</strong> - Get yours free at <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">financialmodelingprep.com</a> (250 calls/day)<br>
-            <input type="text" id="apiKey" placeholder="Paste your FMP API key here...">
-            <button onclick="saveKey()">Save Key</button>
+            <h3>🔑 API Configuration</h3>
+            <div class="api-row">
+                <label>Tradier (quotes):</label>
+                <input type="text" id="tradierKey" placeholder="Tradier sandbox key (free at developer.tradier.com)">
+            </div>
+            <div class="api-row">
+                <label>FMP (fundamentals):</label>
+                <input type="text" id="fmpKey" placeholder="FMP API key (free at financialmodelingprep.com)">
+            </div>
+            <div class="api-row">
+                <button onclick="saveKeys()">Save Keys</button>
+                <span class="api-status" id="apiStatus">Checking backend...</span>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 12px;">
+                Get free keys: <a href="https://developer.tradier.com/" target="_blank">Tradier</a> (sandbox for quotes) | 
+                <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">FMP</a> (250 calls/day, fundamentals)
+            </p>
         </div>
         
         <div class="search-section">
-            <input type="text" class="search-input" id="searchInput" placeholder="Enter stock ticker (AAPL, TSLA, CRCT...)" list="tickerList" oninput="handleSearchInput(this.value)">
+            <input type="text" class="search-input" id="searchInput" placeholder="Enter stock ticker (AAPL, TSLA, CRCT...)" list="tickerList">
             <datalist id="tickerList"></datalist>
             <button class="btn btn-primary" onclick="analyze()">🔍 Analyze</button>
-            <button class="btn" onclick="scanOpportunities()" style="background:#1a1a1a;border:1px solid #333;color:#fff;">🔎 Scan All</button>
+            <button class="btn btn-secondary" onclick="scanOpportunities()">🔎 Scan Opportunities</button>
         </div>
-        <p id="tickerStatus" style="text-align:center;color:#666;font-size:12px;margin-bottom:16px;">Loading stock symbols...</p>
         
         <div id="error" class="error" style="display:none;"></div>
-        <div id="loading" class="loading" style="display:none;"><div class="spinner"></div><p>Loading...</p></div>
+        <div id="loading" class="loading" style="display:none;"><div class="spinner"></div><p>Analyzing with Python backend...</p></div>
         
         <div id="grid">
-            <h2 style="color:#888;font-size:15px;margin-bottom:16px;">📊 Click a stock to analyze</h2>
+            <h2 style="color:#888;font-size:15px;margin-bottom:16px;">📊 Click a stock to analyze (data from Python backend)</h2>
             <div class="stock-grid" id="stockGrid"></div>
         </div>
         
         <div id="detail" class="detail-view"></div>
         
-        <footer>Built for Michael • <span id="update"></span></footer>
+        <footer>
+            Built for Michael • Python Backend + Tradier/FMP APIs • <span id="update"></span>
+        </footer>
     </div>
 
 <script>
-var KEY = localStorage.getItem('fmp_key') || '';
-var API = 'https://financialmodelingprep.com/api/v3';
+// API base URL (Python Flask backend)
+const API_BASE = window.location.origin;
 
-// GitHub source for live stock lists (updated nightly)
-var GITHUB_STOCKS_URL = 'https://raw.githubusercontent.com/rreichel3/US-Stock-Symbols/main';
-var ALL_TICKERS = [];
-var FILTERED_STOCKS = [];
-
-// Default popular stocks (shown before GitHub data loads)
-var DEFAULT_STOCKS = [
-    {s:'AAPL',n:'Apple'}, {s:'MSFT',n:'Microsoft'}, {s:'GOOGL',n:'Alphabet'},
-    {s:'AMZN',n:'Amazon'}, {s:'TSLA',n:'Tesla'}, {s:'META',n:'Meta'},
-    {s:'NVDA',n:'NVIDIA'}, {s:'JPM',n:'JPMorgan'}, {s:'V',n:'Visa'},
-    {s:'WMT',n:'Walmart'}, {s:'NFLX',n:'Netflix'}, {s:'CRCT',n:'Cricut'}
-];
-var STOCKS = DEFAULT_STOCKS;
-
-// Fetch stock symbols from GitHub (rreichel3/US-Stock-Symbols)
-async function loadTickersFromGitHub() {
+// Check backend health on load
+async function checkBackend() {
+    const statusEl = document.getElementById('apiStatus');
     try {
-        var statusEl = document.getElementById('tickerStatus');
-        if(statusEl) statusEl.textContent = '⏳ Loading stock symbols from GitHub...';
+        const resp = await fetch(API_BASE + '/api/health');
+        const data = await resp.json();
         
-        // Fetch all three exchanges in parallel
-        var [nasdaq, nyse, amex] = await Promise.all([
-            fetch(GITHUB_STOCKS_URL + '/nasdaq/nasdaq_tickers.json').then(r => r.json()).catch(() => []),
-            fetch(GITHUB_STOCKS_URL + '/nyse/nyse_tickers.json').then(r => r.json()).catch(() => []),
-            fetch(GITHUB_STOCKS_URL + '/amex/amex_tickers.json').then(r => r.json()).catch(() => [])
-        ]);
-        
-        // Combine and dedupe
-        var combined = new Set([...nasdaq, ...nyse, ...amex]);
-        ALL_TICKERS = Array.from(combined).sort();
-        
-        // Update autocomplete
-        updateAutocomplete();
-        
-        if(statusEl) {
-            statusEl.textContent = '✅ Loaded ' + ALL_TICKERS.length.toLocaleString() + ' US stocks (NASDAQ + NYSE + AMEX)';
-            statusEl.style.color = '#00d374';
-        }
-        console.log('Loaded ' + ALL_TICKERS.length + ' tickers from GitHub');
-    } catch(e) {
-        console.error('Failed to load tickers:', e);
-        var statusEl = document.getElementById('tickerStatus');
-        if(statusEl) {
-            statusEl.textContent = '⚠️ Using default stocks (GitHub unavailable)';
-            statusEl.style.color = '#ffb800';
-        }
-    }
-}
-
-// Autocomplete for search
-function updateAutocomplete() {
-    var datalist = document.getElementById('tickerList');
-    if(!datalist) return;
-    datalist.innerHTML = '';
-    // Add popular ones first, then random sample
-    var popular = ['AAPL','MSFT','GOOGL','AMZN','TSLA','META','NVDA','JPM','V','WMT','NFLX','CRCT','AMD','INTC','COST','HD','DIS','PYPL','ADBE','CRM'];
-    popular.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t;
-        datalist.appendChild(opt);
-    });
-}
-
-// Search/filter tickers
-function searchTickers(query) {
-    if(!query || query.length < 1) return [];
-    query = query.toUpperCase();
-    return ALL_TICKERS.filter(function(t) {
-        return t.startsWith(query);
-    }).slice(0, 20);
-}
-
-if(KEY) document.getElementById('apiKey').value = KEY;
-
-// Load tickers on startup
-document.addEventListener('DOMContentLoaded', function() {
-    loadTickersFromGitHub();
-});
-
-function saveKey() {
-    KEY = document.getElementById('apiKey').value.trim();
-    if(KEY) { localStorage.setItem('fmp_key',KEY); alert('Saved! Now click a stock.'); load(); }
-}
-
-function apiFetch(ep) {
-    if(!KEY) { return Promise.resolve(null); }
-    var url = API + ep + (ep.indexOf('?') >= 0 ? '&' : '?') + 'apikey=' + KEY;
-    return fetch(url).then(function(r) {
-        if(!r.ok) throw new Error();
-        return r.json();
-    }).catch(function() { return null; });
-}
-
-function load() {
-    var g = document.getElementById('stockGrid');
-    if(!KEY) {
-        var html = '';
-        for(var i = 0; i < STOCKS.length; i++) {
-            var s = STOCKS[i];
-            html += '<div class="stock-card" onclick="analyze(\'' + s.s + '\')"><h3>' + s.n + '</h3><span class="ticker">' + s.s + '</span><div class="price">Enter API key</div></div>';
-        }
-        g.innerHTML = html;
-        return;
-    }
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px"><div class="spinner"></div></div>';
-    
-    var tickers = [];
-    for(var j = 0; j < STOCKS.length; j++) tickers.push(STOCKS[j].s);
-    
-    apiFetch('/quote/' + tickers.join(',')).then(function(q) {
-        if(!q || !q.length) {
-            var html2 = '';
-            for(var k = 0; k < STOCKS.length; k++) {
-                var st = STOCKS[k];
-                html2 += '<div class="stock-card" onclick="analyze(\'' + st.s + '\')"><h3>' + st.n + '</h3><span class="ticker">' + st.s + '</span><div class="price">Click to load</div></div>';
+        if (data.status === 'ok') {
+            let status = '✅ Backend connected';
+            if (data.tradier_configured) status += ' | Tradier ✓';
+            if (data.fmp_configured) status += ' | FMP ✓';
+            if (!data.tradier_configured && !data.fmp_configured) {
+                status += ' | ⚠️ No API keys configured';
             }
-            g.innerHTML = html2;
-            return;
+            statusEl.textContent = status;
+            statusEl.className = 'api-status connected';
         }
-        var html3 = '';
-        for(var m = 0; m < q.length; m++) {
-            var x = q[m];
-            var chg = x.changesPercentage || 0;
-            html3 += '<div class="stock-card" onclick="analyze(\'' + x.symbol + '\')"><h3>' + (x.name || x.symbol) + '</h3><span class="ticker">' + x.symbol + '</span><div class="price">$' + (x.price ? x.price.toFixed(2) : '--') + '</div><span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span></div>';
-        }
-        g.innerHTML = html3;
-        document.getElementById('update').textContent = new Date().toLocaleTimeString();
-    });
+    } catch (e) {
+        statusEl.textContent = '❌ Backend not running. Start with: python app.py';
+        statusEl.className = 'api-status';
+    }
 }
 
-// Handle search input with autocomplete from GitHub data
-function handleSearchInput(val) {
-    if(!val || val.length < 1 || ALL_TICKERS.length === 0) return;
-    var matches = searchTickers(val);
-    var datalist = document.getElementById('tickerList');
-    if(!datalist) return;
-    datalist.innerHTML = '';
-    matches.forEach(function(t) {
-        var opt = document.createElement('option');
-        opt.value = t;
-        datalist.appendChild(opt);
-    });
-}
-
-// Scan random stocks from GitHub list for opportunities
-async function scanOpportunities() {
-    if(!KEY) { err('Enter API key first'); return; }
-    if(ALL_TICKERS.length === 0) { err('Still loading stock list, try again...'); return; }
+// Save API keys to backend
+async function saveKeys() {
+    const tradierKey = document.getElementById('tradierKey').value.trim();
+    const fmpKey = document.getElementById('fmpKey').value.trim();
     
+    try {
+        const resp = await fetch(API_BASE + '/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tradier_key: tradierKey, fmp_key: fmpKey })
+        });
+        const data = await resp.json();
+        
+        if (data.status === 'ok') {
+            if (tradierKey) localStorage.setItem('tradier_key', tradierKey);
+            if (fmpKey) localStorage.setItem('fmp_key', fmpKey);
+            
+            alert('API keys saved! Backend is ready.');
+            checkBackend();
+            loadDefaultStocks();
+        }
+    } catch (e) {
+        alert('Error saving keys. Is the backend running?');
+    }
+}
+
+// Load saved keys
+function loadSavedKeys() {
+    const tradierKey = localStorage.getItem('tradier_key');
+    const fmpKey = localStorage.getItem('fmp_key');
+    
+    if (tradierKey) document.getElementById('tradierKey').value = tradierKey;
+    if (fmpKey) document.getElementById('fmpKey').value = fmpKey;
+    
+    if (tradierKey || fmpKey) {
+        fetch(API_BASE + '/api/config', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tradier_key: tradierKey || '', fmp_key: fmpKey || '' })
+        }).catch(function() {});
+    }
+}
+
+// Load default stocks for the grid
+async function loadDefaultStocks() {
+    const grid = document.getElementById('stockGrid');
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px"><div class="spinner"></div></div>';
+    
+    try {
+        const resp = await fetch(API_BASE + '/api/scan');
+        const data = await resp.json();
+        
+        if (data.opportunities && data.opportunities.length > 0) {
+            displayStockGrid(data.opportunities);
+        } else {
+            grid.innerHTML = '<p style="color:#666;grid-column:1/-1;text-align:center;">Configure API keys to load stock data</p>';
+        }
+    } catch (e) {
+        grid.innerHTML = '<p style="color:#ff5252;grid-column:1/-1;text-align:center;">Backend not running. Start with: python app.py</p>';
+    }
+}
+
+function displayStockGrid(stocks) {
+    const grid = document.getElementById('stockGrid');
+    grid.innerHTML = stocks.map(function(s) {
+        const scoreClass = s.score >= 60 ? 'high' : s.score >= 40 ? 'medium' : 'low';
+        const changeClass = (s.upside || 0) >= 0 ? 'up' : 'down';
+        const changeSymbol = (s.upside || 0) >= 0 ? '▲' : '▼';
+        
+        return '<div class="stock-card" onclick="analyze(\'' + s.symbol + '\')">' +
+            '<h3>' + (s.name || s.symbol) + '</h3>' +
+            '<span class="ticker">' + s.symbol + '</span>' +
+            '<div class="price">$' + (s.price || 0).toFixed(2) + '</div>' +
+            '<span class="change ' + changeClass + '">' + changeSymbol + ' ' + Math.abs(s.upside || 0).toFixed(0) + '% upside</span>' +
+            '<span class="score-badge ' + scoreClass + '">Score: ' + (s.score || 0) + '</span>' +
+            '</div>';
+    }).join('');
+}
+
+// Scan for opportunities
+async function scanOpportunities() {
     document.getElementById('loading').style.display = 'block';
     document.getElementById('error').style.display = 'none';
-    
-    // Pick random sample of stocks to scan (API rate limit friendly)
-    var sample = [];
-    var shuffled = ALL_TICKERS.slice().sort(() => Math.random() - 0.5);
-    sample = shuffled.slice(0, 30);
-    
-    var g = document.getElementById('stockGrid');
-    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#666;">Scanning ' + sample.length + ' stocks from ' + ALL_TICKERS.length.toLocaleString() + ' total...</div>';
+    document.getElementById('grid').style.display = 'block';
+    document.getElementById('detail').className = 'detail-view';
     
     try {
-        var quotes = await apiFetch('/quote/' + sample.join(','));
+        const resp = await fetch(API_BASE + '/api/scan');
+        const data = await resp.json();
+        
         document.getElementById('loading').style.display = 'none';
         
-        if(!quotes || !quotes.length) {
-            g.innerHTML = '<div style="grid-column:1/-1;color:#ff5252;">Failed to fetch data. Check API key.</div>';
-            return;
+        if (data.opportunities) {
+            displayStockGrid(data.opportunities);
         }
-        
-        var html = '<div style="grid-column:1/-1;margin-bottom:12px;"><span style="color:#00d374;">Found ' + quotes.length + ' stocks</span> from random scan of ' + ALL_TICKERS.length.toLocaleString() + ' US stocks</div>';
-        
-        quotes.sort((a,b) => Math.abs(b.changesPercentage || 0) - Math.abs(a.changesPercentage || 0));
-        
-        for(var i = 0; i < quotes.length; i++) {
-            var x = quotes[i];
-            if(!x.price || x.price < 1) continue;
-            var chg = x.changesPercentage || 0;
-            html += '<div class="stock-card" onclick="analyze(\'' + x.symbol + '\')"><h3>' + (x.name || x.symbol) + '</h3><span class="ticker">' + x.symbol + '</span><div class="price">$' + x.price.toFixed(2) + '</div><span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span></div>';
-        }
-        g.innerHTML = html;
-        document.getElementById('update').textContent = new Date().toLocaleTimeString();
-    } catch(e) {
+    } catch (e) {
         document.getElementById('loading').style.display = 'none';
-        g.innerHTML = '<div style="grid-column:1/-1;color:#ff5252;">Scan failed: ' + e.message + '</div>';
+        showError('Backend not running. Start with: python app.py');
     }
 }
 
-function analyze(sym) {
+// Analyze single stock
+async function analyze(sym) {
     sym = sym || document.getElementById('searchInput').value.trim().toUpperCase();
-    if(!sym) { err('Enter ticker'); return; }
-    if(!KEY) { err('Enter API key first'); return; }
+    if (!sym) {
+        showError('Enter a stock ticker');
+        return;
+    }
     
     document.getElementById('loading').style.display = 'block';
     document.getElementById('error').style.display = 'none';
     document.getElementById('grid').style.display = 'none';
     document.getElementById('detail').className = 'detail-view';
     
-    Promise.all([
-        apiFetch('/quote/' + sym),
-        apiFetch('/profile/' + sym),
-        apiFetch('/ratios-ttm/' + sym),
-        apiFetch('/balance-sheet-statement/' + sym + '?limit=1'),
-        apiFetch('/cash-flow-statement/' + sym + '?limit=1'),
-        apiFetch('/discounted-cash-flow/' + sym)
-    ]).then(function(results) {
-        var quote = results[0];
-        var profile = results[1];
-        var ratios = results[2];
-        var bs = results[3];
-        var cf = results[4];
-        var dcf = results[5];
+    try {
+        const resp = await fetch(API_BASE + '/api/analyze/' + sym);
+        const data = await resp.json();
         
         document.getElementById('loading').style.display = 'none';
         
-        if(!quote || !quote.length) { err('No data for ' + sym); document.getElementById('grid').style.display = 'block'; return; }
-        
-        var q = quote[0];
-        var p = (profile && profile[0]) || {};
-        var r = (ratios && ratios[0]) || {};
-        var b = (bs && bs[0]) || {};
-        var c = (cf && cf[0]) || {};
-        
-        var price = q.price || 0;
-        var chg = q.changesPercentage || 0;
-        var name = p.companyName || q.name || sym;
-        
-        var pe = r.peRatioTTM || 0;
-        var ps = r.priceToSalesRatioTTM || 0;
-        var pb = r.priceBookValueRatioTTM || 0;
-        var roa = (r.returnOnAssetsTTM || 0) * 100;
-        var roe = (r.returnOnEquityTTM || 0) * 100;
-        var pm = (r.netProfitMarginTTM || 0) * 100;
-        var gm = (r.grossProfitMarginTTM || 0) * 100;
-        
-        var cash = b.cashAndCashEquivalents || 0;
-        var debt = b.totalDebt || 0;
-        var fcf = c.freeCashFlow || 0;
-        
-        var fv = (dcf && dcf[0] && dcf[0].dcf) ? dcf[0].dcf : price * 1.3;
-        var up = price > 0 ? ((fv - price) / price * 100) : 0;
-        
-        var sc = 0;
-        var ch = [];
-        
-        if(roa > 10) { sc += 15; ch.push({i:'pass', t:'ROA ' + roa.toFixed(1) + '%'}); }
-        else if(roa > 5) { sc += 7; ch.push({i:'warn', t:'ROA ' + roa.toFixed(1) + '%'}); }
-        else { ch.push({i:'fail', t:'ROA ' + roa.toFixed(1) + '%'}); }
-        
-        if(roe > 10) { sc += 15; ch.push({i:'pass', t:'ROE ' + roe.toFixed(1) + '%'}); }
-        else if(roe > 5) { sc += 7; ch.push({i:'warn', t:'ROE ' + roe.toFixed(1) + '%'}); }
-        else { ch.push({i:'fail', t:'ROE ' + roe.toFixed(1) + '%'}); }
-        
-        if(up > 30) { sc += 20; ch.push({i:'pass', t: up.toFixed(0) + '% undervalued'}); }
-        else if(up > 10) { sc += 10; ch.push({i:'warn', t: up.toFixed(0) + '% undervalued'}); }
-        else if(up > 0) { sc += 5; ch.push({i:'warn', t: up.toFixed(0) + '% upside'}); }
-        else { ch.push({i:'fail', t:'Overvalued'}); }
-        
-        if(cash >= debt) { sc += 15; ch.push({i:'pass', t:'Cash > Debt'}); }
-        else { ch.push({i:'fail', t:'Debt > Cash'}); }
-        
-        if(pm > 15) { sc += 15; ch.push({i:'pass', t:'Margin ' + pm.toFixed(1) + '%'}); }
-        else if(pm > 5) { sc += 8; ch.push({i:'warn', t:'Margin ' + pm.toFixed(1) + '%'}); }
-        else { ch.push({i:'fail', t:'Margin ' + pm.toFixed(1) + '%'}); }
-        
-        if(ps > 0 && ps < 2) { sc += 10; ch.push({i:'pass', t:'P/S ' + ps.toFixed(2) + 'x'}); }
-        else if(ps > 0) { ch.push({i:'warn', t:'P/S ' + ps.toFixed(2) + 'x'}); }
-        
-        if(fcf > 0) { sc += 10; ch.push({i:'pass', t:'FCF ' + fmt(fcf)}); }
-        else { ch.push({i:'fail', t:'Negative FCF'}); }
-        
-        var col = sc >= 60 ? '#00d374' : (sc >= 40 ? '#ffb800' : '#ff5252');
-        var circ = 2 * Math.PI * 55;
-        var off = circ - (sc / 100) * circ;
-        
-        var alertHtml = '';
-        if(up > 20) {
-            alertHtml = '<div class="alert"><span style="font-size:28px">💎</span><div><h3>Opportunity!</h3><p>' + sym + ' is ' + up.toFixed(0) + '% below fair value</p></div></div>';
+        if (data.error) {
+            showError(data.error);
+            document.getElementById('grid').style.display = 'block';
+            return;
         }
         
-        var checklistHtml = '';
-        for(var n = 0; n < ch.length; n++) {
-            var item = ch[n];
-            var icon = item.i === 'pass' ? '✓' : (item.i === 'warn' ? '!' : '✗');
-            checklistHtml += '<li><span class="icon ' + item.i + '">' + icon + '</span>' + item.t + '</li>';
-        }
-        
-        document.getElementById('detail').innerHTML = 
-            '<button class="back-btn" onclick="back()">← Back</button>' +
-            alertHtml +
-            '<div class="header-card">' +
-                '<div class="header-left">' +
-                    '<div class="logo">' + sym.slice(0,4) + '</div>' +
-                    '<div class="header-info"><h2>' + name + '</h2><span>' + sym + ' • ' + (p.industry || 'N/A') + '</span></div>' +
-                '</div>' +
-                '<div class="header-right">' +
-                    '<div class="price">$' + price.toFixed(2) + '</div>' +
-                    '<span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span>' +
-                '</div>' +
+        displayAnalysis(data);
+    } catch (e) {
+        document.getElementById('loading').style.display = 'none';
+        showError('Backend not running. Start with: python app.py');
+        document.getElementById('grid').style.display = 'block';
+    }
+}
+
+function displayAnalysis(data) {
+    const q = data.quote || {};
+    const f = data.fundamentals || {};
+    const rec = data.recommendation || {};
+    const checks = data.checklist || [];
+    
+    const price = q.price || 0;
+    const fairValue = data.fair_value || price;
+    const upside = data.upside_percent || 0;
+    const score = data.investment_score || 0;
+    
+    const changeClass = (q.change_percent || 0) >= 0 ? 'up' : 'down';
+    const changeSymbol = (q.change_percent || 0) >= 0 ? '▲' : '▼';
+    
+    const col = score >= 60 ? '#00d374' : (score >= 40 ? '#ffb800' : '#ff5252');
+    const circ = 2 * Math.PI * 55;
+    const off = circ - (score / 100) * circ;
+    
+    let alertHtml = '';
+    if (upside > 20) {
+        alertHtml = '<div class="alert"><span style="font-size:28px">💎</span><div><h3>Opportunity Detected!</h3><p>' + data.symbol + ' is ' + upside.toFixed(0) + '% below estimated fair value (calculated by Python backend)</p></div></div>';
+    }
+    
+    let checklistHtml = '';
+    for (let i = 0; i < checks.length; i++) {
+        const c = checks[i];
+        const icon = c.pass === true ? '✓' : (c.pass === 'warn' ? '!' : '✗');
+        const iconClass = c.pass === true ? 'pass' : (c.pass === 'warn' ? 'warn' : 'fail');
+        checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span>' + c.text + '</li>';
+    }
+    
+    document.getElementById('detail').innerHTML = 
+        '<button class="back-btn" onclick="back()">← Back</button>' +
+        alertHtml +
+        '<div class="recommendation-card" style="border-left: 4px solid ' + (rec.color || '#666') + '">' +
+            '<div><div class="signal" style="color: ' + (rec.color || '#fff') + '">' + (rec.signal || 'ANALYZING') + '</div>' +
+            '<div class="reason">' + (rec.reason || 'Based on Michael\'s investment criteria') + '</div></div>' +
+        '</div>' +
+        '<div class="header-card">' +
+            '<div class="header-left">' +
+                '<div class="logo">' + data.symbol.slice(0,4) + '</div>' +
+                '<div class="header-info"><h2>' + (q.name || data.symbol) + '</h2>' +
+                '<span>' + data.symbol + ' • ' + (q.industry || q.sector || 'N/A') + '</span></div>' +
             '</div>' +
-            '<div class="fair-value-card">' +
-                '<div><h3>📈 Upside</h3><div class="upside">' + (up > 0 ? '+' : '') + up.toFixed(0) + '%</div></div>' +
-                '<div class="details">' +
-                    '<div class="detail-item"><label>Current</label><span>$' + price.toFixed(2) + '</span></div>' +
-                    '<div class="detail-item"><label>Fair Value</label><span style="color:#00d374">$' + fv.toFixed(2) + '</span></div>' +
-                    '<div class="detail-item"><label>52W</label><span>$' + (q.yearLow || 0).toFixed(0) + '-$' + (q.yearHigh || 0).toFixed(0) + '</span></div>' +
-                '</div>' +
+            '<div class="header-right">' +
+                '<div class="price">$' + price.toFixed(2) + '</div>' +
+                '<span class="change ' + changeClass + '">' + changeSymbol + ' ' + Math.abs(q.change_percent || 0).toFixed(2) + '%</span>' +
             '</div>' +
-            '<div class="metrics-grid">' +
-                '<div class="card"><div class="card-title">💰 Valuation</div>' +
-                    '<div class="metric-row"><span class="label">P/E</span><span class="value">' + (pe > 0 ? pe.toFixed(1) + 'x' : 'N/A') + '</span></div>' +
-                    '<div class="metric-row"><span class="label">P/S</span><span class="value ' + (ps > 0 && ps < 3 ? 'good' : '') + '">' + (ps > 0 ? ps.toFixed(2) + 'x' : 'N/A') + '</span></div>' +
-                    '<div class="metric-row"><span class="label">P/B</span><span class="value">' + (pb > 0 ? pb.toFixed(2) + 'x' : 'N/A') + '</span></div>' +
-                    '<div class="metric-row"><span class="label">Mkt Cap</span><span class="value">' + fmt(q.marketCap) + '</span></div>' +
+        '</div>' +
+        '<div class="fair-value-card">' +
+            '<div><h3>📈 Calculated Upside</h3><div class="upside">' + (upside > 0 ? '+' : '') + upside.toFixed(0) + '%</div></div>' +
+            '<div class="details">' +
+                '<div class="detail-item"><label>Current</label><span>$' + price.toFixed(2) + '</span></div>' +
+                '<div class="detail-item"><label>Fair Value</label><span style="color:#00d374">$' + fairValue.toFixed(2) + '</span></div>' +
+                '<div class="detail-item"><label>52W Range</label><span>$' + (q.week_52_low || 0).toFixed(0) + '-$' + (q.week_52_high || 0).toFixed(0) + '</span></div>' +
+            '</div>' +
+        '</div>' +
+        '<div class="metrics-grid">' +
+            '<div class="card"><div class="card-title">💰 Valuation</div>' +
+                '<div class="metric-row"><span class="label">P/E Ratio</span><span class="value">' + (f.pe_ratio || 0).toFixed(1) + 'x</span></div>' +
+                '<div class="metric-row"><span class="label">P/S Ratio</span><span class="value ' + ((f.ps_ratio || 0) < 2 ? 'good' : '') + '">' + (f.ps_ratio || 0).toFixed(2) + 'x</span></div>' +
+                '<div class="metric-row"><span class="label">P/B Ratio</span><span class="value">' + (f.pb_ratio || 0).toFixed(2) + 'x</span></div>' +
+                '<div class="metric-row"><span class="label">Market Cap</span><span class="value">' + formatNum(q.market_cap) + '</span></div>' +
+            '</div>' +
+            '<div class="card"><div class="card-title">📊 Profitability</div>' +
+                '<div class="metric-row"><span class="label">ROA</span><span class="value ' + ((f.roa || 0) > 10 ? 'good' : (f.roa || 0) > 5 ? 'warn' : '') + '">' + (f.roa || 0).toFixed(1) + '%</span></div>' +
+                '<div class="metric-row"><span class="label">ROE</span><span class="value ' + ((f.roe || 0) > 10 ? 'good' : (f.roe || 0) > 5 ? 'warn' : '') + '">' + (f.roe || 0).toFixed(1) + '%</span></div>' +
+                '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + ((f.profit_margin || 0) > 10 ? 'good' : '') + '">' + (f.profit_margin || 0).toFixed(1) + '%</span></div>' +
+                '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + (f.gross_margin || 0).toFixed(1) + '%</span></div>' +
+            '</div>' +
+            '<div class="card"><div class="card-title">🏦 Balance Sheet</div>' +
+                '<div class="metric-row"><span class="label">Cash</span><span class="value good">' + formatNum(f.cash) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Debt</span><span class="value ' + ((f.debt || 0) > (f.cash || 0) ? 'bad' : '') + '">' + formatNum(f.debt) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Net Cash</span><span class="value ' + ((f.cash || 0) >= (f.debt || 0) ? 'good' : 'bad') + '">' + formatNum((f.cash || 0) - (f.debt || 0)) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Free Cash Flow</span><span class="value ' + ((f.fcf || 0) > 0 ? 'good' : 'bad') + '">' + formatNum(f.fcf) + '</span></div>' +
+            '</div>' +
+            '<div class="card score-card"><div class="card-title">⭐ Michael\'s Score</div>' +
+                '<div class="score-ring">' +
+                    '<svg width="130" height="130"><circle class="bg" cx="65" cy="65" r="55"></circle><circle cx="65" cy="65" r="55" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
+                    '<div class="score-text"><div class="num" style="color:' + col + '">' + score + '</div><div class="label">/100</div></div>' +
                 '</div>' +
-                '<div class="card"><div class="card-title">📊 Profitability</div>' +
-                    '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + (pm > 10 ? 'good' : (pm < 0 ? 'bad' : '')) + '">' + pm.toFixed(1) + '%</span></div>' +
-                    '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + gm.toFixed(1) + '%</span></div>' +
-                    '<div class="metric-row"><span class="label">ROA</span><span class="value ' + (roa > 10 ? 'good' : '') + '">' + roa.toFixed(1) + '%</span></div>' +
-                    '<div class="metric-row"><span class="label">ROE</span><span class="value ' + (roe > 10 ? 'good' : '') + '">' + roe.toFixed(1) + '%</span></div>' +
-                '</div>' +
-                '<div class="card"><div class="card-title">🏦 Balance Sheet</div>' +
-                    '<div class="metric-row"><span class="label">Cash</span><span class="value good">' + fmt(cash) + '</span></div>' +
-                    '<div class="metric-row"><span class="label">Debt</span><span class="value ' + (debt > cash ? 'bad' : '') + '">' + fmt(debt) + '</span></div>' +
-                    '<div class="metric-row"><span class="label">Net</span><span class="value ' + (cash >= debt ? 'good' : 'bad') + '">' + fmt(cash - debt) + '</span></div>' +
-                    '<div class="metric-row"><span class="label">FCF</span><span class="value ' + (fcf > 0 ? 'good' : 'bad') + '">' + fmt(fcf) + '</span></div>' +
-                '</div>' +
-                '<div class="card score-card"><div class="card-title">⭐ Score</div>' +
-                    '<div class="score-ring">' +
-                        '<svg width="130" height="130"><circle class="bg" cx="65" cy="65" r="55"></circle><circle cx="65" cy="65" r="55" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
-                        '<div class="score-text"><div class="num" style="color:' + col + '">' + sc + '</div><div class="label">/100</div></div>' +
-                    '</div>' +
-                    '<ul class="checklist">' + checklistHtml + '</ul>' +
-                '</div>' +
-            '</div>';
-        
-        document.getElementById('detail').className = 'detail-view active';
-        document.getElementById('update').textContent = new Date().toLocaleTimeString();
-    });
+                '<ul class="checklist">' + checklistHtml + '</ul>' +
+            '</div>' +
+        '</div>';
+    
+    document.getElementById('detail').className = 'detail-view active';
+    document.getElementById('update').textContent = new Date().toLocaleTimeString();
 }
 
 function back() {
@@ -459,24 +395,53 @@ function back() {
     document.getElementById('grid').style.display = 'block';
 }
 
-function err(m) {
-    document.getElementById('error').textContent = m;
+function showError(msg) {
+    document.getElementById('error').textContent = msg;
     document.getElementById('error').style.display = 'block';
 }
 
-function fmt(n) {
-    if(!n && n !== 0) return 'N/A';
-    if(Math.abs(n) >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T';
-    if(Math.abs(n) >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
-    if(Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
-    return '$' + n.toLocaleString();
+function formatNum(n) {
+    if (!n && n !== 0) return 'N/A';
+    if (Math.abs(n) >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T';
+    if (Math.abs(n) >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+    if (Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
+    if (Math.abs(n) >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+    return '$' + n.toFixed(0);
 }
 
+// Load tickers for autocomplete
+async function loadTickers() {
+    try {
+        const resp = await fetch(API_BASE + '/api/tickers');
+        const data = await resp.json();
+        
+        if (data.tickers) {
+            const datalist = document.getElementById('tickerList');
+            const popular = data.tickers.slice(0, 100);
+            for (let i = 0; i < popular.length; i++) {
+                const opt = document.createElement('option');
+                opt.value = popular[i];
+                datalist.appendChild(opt);
+            }
+        }
+    } catch (e) {
+        console.log('Could not load tickers');
+    }
+}
+
+// Enter key support
 document.getElementById('searchInput').addEventListener('keypress', function(e) {
-    if(e.key === 'Enter') analyze();
+    if (e.key === 'Enter') analyze();
 });
 
-document.addEventListener('DOMContentLoaded', load);
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    loadSavedKeys();
+    checkBackend();
+    loadTickers();
+    loadDefaultStocks();
+    document.getElementById('update').textContent = new Date().toLocaleTimeString();
+});
 </script>
 </body>
 </html>
