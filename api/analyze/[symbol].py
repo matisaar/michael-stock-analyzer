@@ -66,8 +66,146 @@ def to_pct(val):
         return val
     return val * 100
 
+
+# ── Rule #1 Investing Functions (Phil Town) ──────────────────────────
+
+def calculate_roic(info):
+    """Calculate Return on Invested Capital.
+    ROIC = Net Income / Invested Capital
+    Invested Capital = Equity + Total Debt - Cash"""
+    net_income = safe_get(info, 'netIncomeToCommon', 0)
+    if not net_income:
+        return None
+    bv_ps = safe_get(info, 'bookValue', 0)
+    shares = safe_get(info, 'sharesOutstanding', 0)
+    total_debt = safe_get(info, 'totalDebt', 0)
+    total_cash = safe_get(info, 'totalCash', 0)
+    equity = bv_ps * shares if bv_ps and shares else 0
+    invested_capital = equity + total_debt - total_cash
+    if invested_capital <= 0:
+        return None
+    return (net_income / invested_capital) * 100
+
+
+def calculate_sticker_price(info, price):
+    """Phil Town's Rule #1 Sticker Price with 50% Margin of Safety.
+    Sticker = EPS × (1+g)^10 × min(2×g%, 50) ÷ 1.15^10
+    MOS Price = Sticker ÷ 2"""
+    eps = safe_get(info, 'trailingEps', 0)
+    if not eps or eps <= 0:
+        return None
+    growth_rate = None
+    growth_source = None
+    # Try analyst earnings growth
+    eg = info.get('earningsGrowth')
+    if eg is not None:
+        eg_f = float(eg)
+        if eg_f > 0:
+            growth_rate = eg_f if eg_f < 1 else eg_f / 100
+            growth_source = 'analyst earnings est.'
+    # Try forward vs trailing EPS
+    if growth_rate is None:
+        fwd = safe_get(info, 'forwardEps', 0)
+        if fwd and eps and fwd > eps:
+            growth_rate = (fwd - eps) / eps
+            growth_source = 'forward EPS growth'
+    # Try revenue growth
+    if growth_rate is None:
+        rg = info.get('revenueGrowth')
+        if rg is not None:
+            rg_f = float(rg)
+            if rg_f > 0:
+                growth_rate = rg_f if rg_f < 1 else rg_f / 100
+                growth_source = 'revenue growth'
+    if growth_rate is None or growth_rate <= 0:
+        return None
+    # Cap at 30% for conservative estimate
+    growth_rate = min(growth_rate, 0.30)
+    future_eps = eps * (1 + growth_rate) ** 10
+    future_pe = min(2 * growth_rate * 100, 50)
+    future_price = future_eps * future_pe
+    sticker_price = future_price / (1.15 ** 10)
+    mos_price = sticker_price / 2
+    if price <= mos_price:
+        verdict, verdict_color = 'ON SALE', '#00d374'
+    elif price <= sticker_price:
+        verdict, verdict_color = 'FAIR VALUE', '#ffb800'
+    else:
+        verdict, verdict_color = 'OVERPRICED', '#ff5252'
+    return {
+        'eps': round(eps, 2),
+        'growth_rate': round(growth_rate * 100, 1),
+        'growth_source': growth_source,
+        'future_eps': round(future_eps, 2),
+        'future_pe': round(future_pe, 1),
+        'future_price': round(future_price, 2),
+        'sticker_price': round(sticker_price, 2),
+        'mos_price': round(mos_price, 2),
+        'current_price': round(price, 2),
+        'verdict': verdict,
+        'verdict_color': verdict_color,
+    }
+
+
+def calculate_rule1(info, price):
+    """Full Rule #1 analysis: Big 5 Numbers + Sticker Price + Moat."""
+    big5 = []
+    # 1. ROIC
+    roic = calculate_roic(info)
+    big5.append({
+        'name': 'ROIC', 'value': round(roic, 1) if roic is not None else None,
+        'unit': '%', 'pass': roic is not None and roic >= 10, 'target': '≥ 10%',
+    })
+    # 2. Revenue Growth
+    rg = info.get('revenueGrowth')
+    rg_pct = to_pct(rg) if rg is not None else None
+    big5.append({
+        'name': 'Revenue Growth', 'value': round(rg_pct, 1) if rg_pct is not None else None,
+        'unit': '%', 'pass': rg_pct is not None and rg_pct >= 10, 'target': '≥ 10%',
+    })
+    # 3. EPS Growth
+    eg = info.get('earningsGrowth')
+    eg_pct = to_pct(eg) if eg is not None else None
+    big5.append({
+        'name': 'EPS Growth', 'value': round(eg_pct, 1) if eg_pct is not None else None,
+        'unit': '%', 'pass': eg_pct is not None and eg_pct >= 10, 'target': '≥ 10%',
+    })
+    # 4. Equity Growth (quarterly earnings growth as proxy)
+    eq_g = info.get('earningsQuarterlyGrowth')
+    eq_pct = to_pct(eq_g) if eq_g is not None else None
+    big5.append({
+        'name': 'Equity Growth', 'value': round(eq_pct, 1) if eq_pct is not None else None,
+        'unit': '%', 'pass': eq_pct is not None and eq_pct >= 10, 'target': '≥ 10%',
+        'note': 'quarterly earnings proxy',
+    })
+    # 5. FCF Margin (proxy for FCF health)
+    fcf = safe_get(info, 'freeCashflow', 0)
+    revenue = safe_get(info, 'totalRevenue', 0)
+    fcf_margin = (fcf / revenue * 100) if revenue and fcf else None
+    big5.append({
+        'name': 'FCF Margin', 'value': round(fcf_margin, 1) if fcf_margin is not None else None,
+        'unit': '%', 'pass': fcf_margin is not None and fcf_margin >= 10, 'target': '≥ 10%',
+        'note': 'FCF as % of revenue',
+    })
+    passing = sum(1 for m in big5 if m['pass'])
+    # Sticker Price
+    sticker = calculate_sticker_price(info, price)
+    # Moat assessment
+    roe = info.get('returnOnEquity')
+    roe_pct = to_pct(roe) if roe is not None else 0
+    has_moat = roic is not None and roic >= 10 and roe_pct >= 15
+    return {
+        'big5': big5,
+        'big5_passing': passing,
+        'big5_total': 5,
+        'sticker': sticker,
+        'has_moat': has_moat,
+        'moat_text': 'Strong moat indicators (ROIC ≥10%, ROE ≥15%)' if has_moat else 'Moat uncertain — needs deeper analysis',
+    }
+
+
 def calculate_score(data):
-    """Calculate investment score"""
+    """Calculate investment score with detailed point breakdown"""
     score = 0
     checks = []
     
@@ -81,78 +219,78 @@ def calculate_score(data):
     ps_ratio = data.get('ps_ratio', 0) or 0
     fcf = data.get('fcf', 0) or 0
     
-    # ROA check
+    # ROA check (max 15)
     roa_pct = to_pct(roa)
     if roa_pct > 10:
         score += 15
-        checks.append({'pass': True, 'text': f'ROA ({roa_pct:.1f}%) > 10%'})
+        checks.append({'pass': True, 'text': f'ROA ({roa_pct:.1f}%) > 10%', 'points': 15, 'max': 15})
     elif roa_pct > 5:
         score += 7
-        checks.append({'pass': 'warn', 'text': f'ROA ({roa_pct:.1f}%) moderate'})
+        checks.append({'pass': 'warn', 'text': f'ROA ({roa_pct:.1f}%) moderate', 'points': 7, 'max': 15})
     else:
-        checks.append({'pass': False, 'text': f'ROA ({roa_pct:.1f}%) < 10%'})
+        checks.append({'pass': False, 'text': f'ROA ({roa_pct:.1f}%) < 10%', 'points': 0, 'max': 15})
     
-    # ROE check
+    # ROE check (max 15)
     roe_pct = to_pct(roe)
     if roe_pct > 10:
         score += 15
-        checks.append({'pass': True, 'text': f'ROE ({roe_pct:.1f}%) > 10%'})
+        checks.append({'pass': True, 'text': f'ROE ({roe_pct:.1f}%) > 10%', 'points': 15, 'max': 15})
     elif roe_pct > 5:
         score += 7
-        checks.append({'pass': 'warn', 'text': f'ROE ({roe_pct:.1f}%) moderate'})
+        checks.append({'pass': 'warn', 'text': f'ROE ({roe_pct:.1f}%) moderate', 'points': 7, 'max': 15})
     else:
-        checks.append({'pass': False, 'text': f'ROE ({roe_pct:.1f}%) < 10%'})
+        checks.append({'pass': False, 'text': f'ROE ({roe_pct:.1f}%) < 10%', 'points': 0, 'max': 15})
     
-    # Cash vs Debt
+    # Cash vs Debt (max 15)
     if cash > 0 and cash >= debt:
         score += 15
-        checks.append({'pass': True, 'text': f'Cash (${format_number(cash)}) ≥ Debt'})
+        checks.append({'pass': True, 'text': f'Cash (${format_number(cash)}) \u2265 Debt', 'points': 15, 'max': 15})
     elif debt > 0:
-        checks.append({'pass': False, 'text': f'Debt (${format_number(debt)}) > Cash'})
+        checks.append({'pass': False, 'text': f'Debt (${format_number(debt)}) > Cash', 'points': 0, 'max': 15})
     else:
-        checks.append({'pass': 'warn', 'text': 'Cash/Debt data limited'})
+        checks.append({'pass': 'warn', 'text': 'Cash/Debt data limited', 'points': 0, 'max': 15})
     
-    # Fair value
+    # Fair value (max 20)
     if price > 0 and fair_value > 0:
         upside = ((fair_value - price) / price) * 100
         if upside > 30:
             score += 20
-            checks.append({'pass': True, 'text': f'{upside:.0f}% undervalued'})
+            checks.append({'pass': True, 'text': f'{upside:.0f}% undervalued', 'points': 20, 'max': 20})
         elif upside > 10:
             score += 10
-            checks.append({'pass': 'warn', 'text': f'{upside:.0f}% below fair value'})
+            checks.append({'pass': 'warn', 'text': f'{upside:.0f}% below fair value', 'points': 10, 'max': 20})
         elif upside > 0:
             score += 5
-            checks.append({'pass': 'warn', 'text': 'Near fair value'})
+            checks.append({'pass': 'warn', 'text': 'Near fair value', 'points': 5, 'max': 20})
         else:
-            checks.append({'pass': False, 'text': f'Overvalued by {abs(upside):.0f}%'})
+            checks.append({'pass': False, 'text': f'Overvalued by {abs(upside):.0f}%', 'points': 0, 'max': 20})
     
-    # Profit margin
+    # Profit margin (max 10)
     pm_pct = to_pct(profit_margin)
     if pm_pct > 15:
         score += 10
-        checks.append({'pass': True, 'text': f'Strong margin ({pm_pct:.1f}%)'})
+        checks.append({'pass': True, 'text': f'Strong margin ({pm_pct:.1f}%)', 'points': 10, 'max': 10})
     elif pm_pct > 5:
         score += 5
-        checks.append({'pass': 'warn', 'text': f'Margin ({pm_pct:.1f}%)'})
+        checks.append({'pass': 'warn', 'text': f'Margin ({pm_pct:.1f}%)', 'points': 5, 'max': 10})
     elif pm_pct > 0:
-        checks.append({'pass': 'warn', 'text': f'Low margin ({pm_pct:.1f}%)'})
+        checks.append({'pass': 'warn', 'text': f'Low margin ({pm_pct:.1f}%)', 'points': 0, 'max': 10})
     else:
-        checks.append({'pass': False, 'text': 'Negative margin'})
+        checks.append({'pass': False, 'text': 'Negative margin', 'points': 0, 'max': 10})
     
-    # P/S ratio
+    # P/S ratio (max 10)
     if ps_ratio > 0 and ps_ratio < 2:
         score += 10
-        checks.append({'pass': True, 'text': f'P/S ({ps_ratio:.2f}x) attractive'})
+        checks.append({'pass': True, 'text': f'P/S ({ps_ratio:.2f}x) attractive', 'points': 10, 'max': 10})
     elif ps_ratio > 0:
-        checks.append({'pass': 'warn', 'text': f'P/S ({ps_ratio:.2f}x)'})
+        checks.append({'pass': 'warn', 'text': f'P/S ({ps_ratio:.2f}x)', 'points': 0, 'max': 10})
     
-    # FCF
+    # FCF (max 15)
     if fcf > 0:
         score += 15
-        checks.append({'pass': True, 'text': f'Positive FCF (${format_number(fcf)})'})
+        checks.append({'pass': True, 'text': f'Positive FCF (${format_number(fcf)})', 'points': 15, 'max': 15})
     else:
-        checks.append({'pass': False, 'text': 'Negative/no FCF'})
+        checks.append({'pass': False, 'text': 'Negative/no FCF', 'points': 0, 'max': 15})
     
     return score, checks
 
@@ -371,40 +509,73 @@ def build_stock_result(symbol, info, price):
         'eps': safe_get(info, 'trailingEps', 0),
     }
     
-    # Calculate fair value
+    # Calculate fair value with component tracking
     eps = data['eps']
     pe = safe_get(info, 'trailingPE', 0)
     forward_pe = safe_get(info, 'forwardPE', 0)
     target_price = safe_get(info, 'targetMeanPrice', 0)
+    earnings_growth = info.get('earningsGrowth')
     
     fair_values = []
+    fair_value_components = []
     
     if target_price and target_price > 0:
         fair_values.append(target_price)
+        fair_value_components.append({'label': 'Analyst Consensus Target', 'value': round(target_price, 2)})
     
     if forward_pe and forward_pe > 0 and eps and eps > 0:
         growth_pe = min(forward_pe * 1.2, 30)
-        fair_values.append(eps * growth_pe)
+        fv = eps * growth_pe
+        fair_values.append(fv)
+        fair_value_components.append({'label': f'Forward PE Model (EPS \u00d7 {growth_pe:.1f})', 'value': round(fv, 2)})
+    
+    # Growth-adjusted PE fair value (PEG-based)
+    if earnings_growth and float(earnings_growth) > 0 and eps and eps > 0:
+        eg = float(earnings_growth)
+        growth_pct = eg * 100 if eg < 1 else eg
+        fair_pe_from_growth = min(growth_pct * 1.0, 40)
+        fv = eps * fair_pe_from_growth
+        if fv > 0:
+            fair_values.append(fv)
+            fair_value_components.append({'label': f'PEG Model (EPS \u00d7 {fair_pe_from_growth:.0f} growth-PE)', 'value': round(fv, 2)})
     
     if pe and pe > 0 and pe < 25 and price > 0:
-        fair_values.append(price * 1.1)
+        fv = price * 1.1
+        fair_values.append(fv)
+        fair_value_components.append({'label': 'Low PE Premium (+10%)', 'value': round(fv, 2)})
     elif pe and pe > 25 and price > 0:
-        fair_values.append(price * 0.95)
+        fv = price * 0.95
+        fair_values.append(fv)
+        fair_value_components.append({'label': 'High PE Discount (-5%)', 'value': round(fv, 2)})
     
     if eps and eps > 0 and not fair_values:
         sector = safe_get(info, 'sector', '')
         if 'Technology' in str(sector):
-            fair_values.append(eps * 25)
+            mult = 25
         elif 'Consumer' in str(sector):
-            fair_values.append(eps * 20)
+            mult = 20
         else:
-            fair_values.append(eps * 18)
+            mult = 18
+        fv = eps * mult
+        fair_values.append(fv)
+        fair_value_components.append({'label': f'Sector PE Model (EPS \u00d7 {mult})', 'value': round(fv, 2)})
     
     fair_value = sum(fair_values) / len(fair_values) if fair_values else price
     data['fair_value'] = fair_value
     
     score, checks = calculate_score(data)
     upside = ((fair_value - price) / price * 100) if price > 0 else 0
+    
+    # Growth & Trend data
+    rev_growth = info.get('revenueGrowth')
+    earn_growth = info.get('earningsGrowth')
+    quarterly_growth = info.get('earningsQuarterlyGrowth')
+    rev_growth_pct = to_pct(rev_growth) if rev_growth is not None else None
+    earn_growth_pct = to_pct(earn_growth) if earn_growth is not None else None
+    quarterly_growth_pct = to_pct(quarterly_growth) if quarterly_growth is not None else None
+    
+    # Rule #1 Analysis
+    rule1 = calculate_rule1(info, price)
     
     # Build fundamentals - use None for truly missing data so frontend shows N/A
     roa_val = to_pct(data['roa']) if data['roa'] is not None else None
@@ -429,8 +600,10 @@ def build_stock_result(symbol, info, price):
         },
         'fundamentals': {
             'pe_ratio': safe_get(info, 'trailingPE', None),
+            'forward_pe': forward_pe or None,
             'ps_ratio': data['ps_ratio'] or None,
             'pb_ratio': safe_get(info, 'priceToBook', None),
+            'peg_ratio': safe_get(info, 'pegRatio', None),
             'eps': data['eps'] or None,
             'roa': roa_val,
             'roe': roe_val,
@@ -441,9 +614,18 @@ def build_stock_result(symbol, info, price):
             'fcf': data['fcf'] or None,
             'dividend_yield': to_pct(safe_get(info, 'dividendYield', None)) if info.get('dividendYield') else None,
         },
+        'growth': {
+            'revenue': round(rev_growth_pct, 1) if rev_growth_pct is not None else None,
+            'earnings': round(earn_growth_pct, 1) if earn_growth_pct is not None else None,
+            'quarterly_earnings': round(quarterly_growth_pct, 1) if quarterly_growth_pct is not None else None,
+            'revenue_trend': 'up' if rev_growth_pct and rev_growth_pct > 0 else ('down' if rev_growth_pct and rev_growth_pct < 0 else None),
+            'earnings_trend': 'up' if earn_growth_pct and earn_growth_pct > 0 else ('down' if earn_growth_pct and earn_growth_pct < 0 else None),
+        },
         'fair_value': round(fair_value, 2),
+        'fair_value_components': fair_value_components,
         'upside_percent': round(upside, 1),
         'investment_score': score,
         'checklist': checks,
         'recommendation': get_recommendation(score, upside),
+        'rule1': rule1,
     }

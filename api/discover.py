@@ -64,6 +64,16 @@ def calculate_fair_value(info, price):
         growth_pe = min(forward_pe * 1.2, 30)
         fair_values.append(eps * growth_pe)
 
+    # Growth-adjusted PE fair value (PEG-based)
+    earnings_growth = info.get('earningsGrowth')
+    if earnings_growth and float(earnings_growth) > 0 and eps and eps > 0:
+        eg = float(earnings_growth)
+        growth_pct = eg * 100 if eg < 1 else eg
+        fair_pe_from_growth = min(growth_pct * 1.0, 40)
+        fv = eps * fair_pe_from_growth
+        if fv > 0:
+            fair_values.append(fv)
+
     if pe and pe > 0 and pe < 25 and price > 0:
         fair_values.append(price * 1.1)
     elif pe and pe > 25 and price > 0:

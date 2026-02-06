@@ -251,6 +251,41 @@
         .discover-card .mini-stat .val.bad { color: #ff5252; }
         .discover-loading { text-align: center; padding: 30px; color: #666; font-size: 14px; }
 
+        /* Score Points */
+        .check-pts { font-size: 11px; color: #555; font-weight: 600; min-width: 28px; text-align: right; }
+        .check-pts.earned { color: #00d374; }
+
+        /* Algorithm Detail Toggle */
+        .algo-toggle { cursor: pointer; padding: 14px 0 4px; text-align: center; color: #666; font-size: 13px; margin-top: 12px; border-top: 1px solid #1a1a1a; -webkit-user-select: none; user-select: none; }
+        .algo-toggle:active { color: #00d374; }
+        .algo-detail { padding: 16px; background: #0d0d0d; border-radius: 12px; margin-top: 12px; }
+        .algo-section { margin-bottom: 16px; }
+        .algo-section:last-child { margin-bottom: 0; }
+        .algo-section h4 { color: #00d374; font-size: 13px; margin-bottom: 8px; font-weight: 600; }
+        .algo-section p { color: #777; font-size: 12px; line-height: 1.6; margin-bottom: 6px; }
+        .algo-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #111; font-size: 12px; color: #888; }
+        .algo-row:last-child { border-bottom: none; }
+        .algo-row .pts { color: #00d374; font-weight: 600; }
+        .algo-component { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12px; color: #888; }
+        .algo-component .val { color: #ccc; font-weight: 500; }
+        .formula { font-family: 'SF Mono', Monaco, monospace; color: #aaa; font-size: 11px; background: #111; padding: 8px 12px; border-radius: 8px; margin: 6px 0; line-height: 1.5; }
+
+        /* Rule #1 Card */
+        .big5-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .big5-label { color: #888; font-size: 11px; }
+        .big5-score { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 6px; }
+        .big5-score.good { background: rgba(0,211,116,0.15); color: #00d374; }
+        .big5-score.ok { background: rgba(255,184,0,0.15); color: #ffb800; }
+        .big5-score.bad { background: rgba(255,82,82,0.15); color: #ff5252; }
+        .sticker-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid #1a1a1a; }
+        .sticker-verdict { text-align: center; margin-top: 10px; padding: 10px; border-radius: 10px; font-weight: 700; font-size: 15px; }
+        .moat-row { margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a1a1a; }
+
+        /* Trend Arrows */
+        .trend { font-size: 10px; margin-left: 4px; font-weight: 700; vertical-align: middle; }
+        .trend.up { color: #00d374; }
+        .trend.down { color: #ff5252; }
+
         /* ========== TABLET (sm-up) ========== */
         @media (min-width: 480px) {
             .container { padding: 20px 16px; }
@@ -737,7 +772,9 @@ function buildHeader(data) {
         const c = checks[i];
         const icon = c.pass === true ? '✓' : (c.pass === 'warn' ? '!' : '✗');
         const iconClass = c.pass === true ? 'pass' : (c.pass === 'warn' ? 'warn' : 'fail');
-        checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span>' + c.text + '</li>';
+        const ptsText = c.points != null ? (c.points > 0 ? '+' + c.points : '0') : '';
+        const ptsClass = c.points > 0 ? 'check-pts earned' : 'check-pts';
+        checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span><span style="flex:1">' + c.text + '</span>' + (ptsText !== '' ? '<span class="' + ptsClass + '">' + ptsText + '</span>' : '') + '</li>';
     }
     
     const topSection = 
@@ -808,21 +845,123 @@ function displayETF(data) {
 function displayStock(data) {
     const f = data.fundamentals || {};
     const q = data.quote || {};
+    const g = data.growth || {};
+    const r1 = data.rule1 || {};
+    const fvComps = data.fair_value_components || [];
     const { topSection, scoreSection } = buildHeader(data);
+    
+    // Trend arrow helper
+    function trend(dir) {
+        if (dir === 'up') return '<span class="trend up">▲</span>';
+        if (dir === 'down') return '<span class="trend down">▼</span>';
+        return '';
+    }
+    
+    // Build Rule #1 card
+    var rule1Html = '';
+    if (r1.big5) {
+        var big5Rows = '';
+        for (var i = 0; i < r1.big5.length; i++) {
+            var m = r1.big5[i];
+            var val = m.value != null ? m.value.toFixed(1) + m.unit : 'N/A';
+            var cls = m.pass ? 'good' : (m.value != null && m.value < 0 ? 'bad' : '');
+            var icon = m.pass ? ' ✓' : (m.value != null ? ' ✗' : '');
+            var note = m.note ? ' <span style="color:#555;font-size:10px">(' + m.note + ')</span>' : '';
+            big5Rows += '<div class="metric-row"><span class="label">' + m.name + note + '</span><span class="value ' + cls + '">' + val + icon + '</span></div>';
+        }
+        var b5cls = r1.big5_passing >= 4 ? 'good' : (r1.big5_passing >= 2 ? 'ok' : 'bad');
+        
+        var stickerHtml = '';
+        if (r1.sticker) {
+            var s = r1.sticker;
+            stickerHtml = '<div class="sticker-section">' +
+                '<div class="card-title">💰 Sticker Price (Phil Town)</div>' +
+                '<div class="metric-row"><span class="label">Growth Rate</span><span class="value">' + s.growth_rate + '% <span style="color:#555;font-size:10px">(' + s.growth_source + ')</span></span></div>' +
+                '<div class="metric-row"><span class="label">Sticker Price</span><span class="value">$' + s.sticker_price.toFixed(2) + '</span></div>' +
+                '<div class="metric-row"><span class="label">MOS Price (50% off)</span><span class="value" style="color:#00d374">$' + s.mos_price.toFixed(2) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Current Price</span><span class="value">$' + s.current_price.toFixed(2) + '</span></div>' +
+                '<div class="sticker-verdict" style="background:' + s.verdict_color + '20;color:' + s.verdict_color + '">' + s.verdict + '</div>' +
+            '</div>';
+        }
+        
+        var moatHtml = '<div class="moat-row"><div class="metric-row"><span class="label">Moat</span><span class="value ' + (r1.has_moat ? 'good' : 'warn') + '">' + (r1.has_moat ? '🏰 Strong' : '⚠️ Uncertain') + '</span></div></div>';
+        
+        rule1Html = '<div class="card">' +
+            '<div class="card-title">📏 Rule #1 Investing</div>' +
+            '<div class="big5-header">' +
+                '<span class="big5-label">Big 5 Numbers</span>' +
+                '<span class="big5-score ' + b5cls + '">' + r1.big5_passing + '/' + r1.big5_total + ' passing</span>' +
+            '</div>' +
+            big5Rows + moatHtml + stickerHtml +
+        '</div>';
+    }
+    
+    // Build algorithm detail section
+    var fvCompHtml = '';
+    for (var j = 0; j < fvComps.length; j++) {
+        fvCompHtml += '<div class="algo-component"><span>' + fvComps[j].label + '</span><span class="val">$' + fvComps[j].value.toFixed(2) + '</span></div>';
+    }
+    
+    var stickerFormulaHtml = '';
+    if (r1.sticker) {
+        var st = r1.sticker;
+        stickerFormulaHtml = '<div class="algo-section">' +
+            '<h4>📏 Rule #1 Sticker Price Formula</h4>' +
+            '<div class="formula">Sticker = EPS × (1+g)¹⁰ × min(2×g%, 50) ÷ 1.15¹⁰<br>MOS Price = Sticker ÷ 2</div>' +
+            '<div class="algo-component"><span>Current EPS</span><span class="val">$' + st.eps.toFixed(2) + '</span></div>' +
+            '<div class="algo-component"><span>Growth Rate (' + st.growth_source + ')</span><span class="val">' + st.growth_rate + '%</span></div>' +
+            '<div class="algo-component"><span>Future EPS (10yr)</span><span class="val">$' + st.future_eps.toFixed(2) + '</span></div>' +
+            '<div class="algo-component"><span>Future PE (2 × growth%)</span><span class="val">' + st.future_pe.toFixed(1) + 'x</span></div>' +
+            '<div class="algo-component"><span>Future Market Price</span><span class="val">$' + st.future_price.toFixed(2) + '</span></div>' +
+            '<div class="algo-component"><span>÷ 1.15¹⁰ (15% MARR) = Sticker</span><span class="val">$' + st.sticker_price.toFixed(2) + '</span></div>' +
+            '<div class="algo-component"><span>÷ 2 (50% MOS) = Buy Price</span><span class="val" style="color:#00d374">$' + st.mos_price.toFixed(2) + '</span></div>' +
+        '</div>';
+    }
+    
+    var algoHtml = '<div class="card" style="grid-column:1/-1">' +
+        '<div class="algo-toggle" onclick="toggleAlgo()">🔬 View Algorithm Details — How Everything is Calculated ▼</div>' +
+        '<div id="algoDetail" class="algo-detail" style="display:none">' +
+            '<div class="algo-section">' +
+                '<h4>📊 Investment Score (100 pts max)</h4>' +
+                '<p>Points awarded across 7 financial health criteria:</p>' +
+                '<div class="algo-row"><span>Return on Assets (ROA) &gt; 10%</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Return on Equity (ROE) &gt; 10%</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Cash ≥ Total Debt</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Undervalued &gt;30% vs blended fair value</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Profit Margin &gt; 15%</span><span class="pts">10 pts</span></div>' +
+                '<div class="algo-row"><span>Price/Sales &lt; 2x</span><span class="pts">10 pts</span></div>' +
+                '<div class="algo-row"><span>Positive Free Cash Flow</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row" style="border-top:2px solid #222;padding-top:6px;margin-top:4px;font-weight:600;color:#ccc"><span>Maximum Score</span><span class="pts">100 pts</span></div>' +
+                '<p style="margin-top:6px;font-size:11px;color:#555">Partial credit: ROA/ROE 5-10% → 7pts. Undervalue 10-30% → 10pts. Margin 5-15% → 5pts.</p>' +
+            '</div>' +
+            '<div class="algo-section">' +
+                '<h4>📐 Fair Value Calculation</h4>' +
+                '<p>Blended average of ' + fvComps.length + ' valuation model(s):</p>' +
+                fvCompHtml +
+                '<div class="algo-component" style="border-top:2px solid #222;padding-top:6px;margin-top:6px;font-weight:600"><span style="color:#ccc">= Blended Fair Value</span><span class="val" style="color:#00d374">$' + (data.fair_value || 0).toFixed(2) + '</span></div>' +
+                '<p style="margin-top:6px;font-size:11px;color:#555">Includes: analyst targets, forward PE, PEG growth-adjusted PE, and PE-based adjustments when available.</p>' +
+            '</div>' +
+            stickerFormulaHtml +
+        '</div>' +
+    '</div>';
     
     document.getElementById('detail').innerHTML = topSection +
         '<div class="metrics-grid">' +
             '<div class="card"><div class="card-title">💰 Valuation</div>' +
                 '<div class="metric-row"><span class="label">P/E Ratio</span><span class="value">' + fmtRatio(f.pe_ratio) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Forward PE</span><span class="value">' + fmtRatio(f.forward_pe) + '</span></div>' +
+                '<div class="metric-row"><span class="label">PEG Ratio</span><span class="value">' + fmtRatio(f.peg_ratio) + '</span></div>' +
                 '<div class="metric-row"><span class="label">P/S Ratio</span><span class="value ' + (f.ps_ratio != null && f.ps_ratio < 2 ? 'good' : '') + '">' + fmtRatio(f.ps_ratio, 2) + '</span></div>' +
                 '<div class="metric-row"><span class="label">P/B Ratio</span><span class="value">' + fmtRatio(f.pb_ratio, 2) + '</span></div>' +
                 '<div class="metric-row"><span class="label">Market Cap</span><span class="value">' + formatNum(q.market_cap) + '</span></div>' +
             '</div>' +
-            '<div class="card"><div class="card-title">📊 Profitability</div>' +
+            '<div class="card"><div class="card-title">📊 Profitability & Growth</div>' +
                 '<div class="metric-row"><span class="label">ROA</span><span class="value ' + pctClass(f.roa) + '">' + fmtPct(f.roa) + '</span></div>' +
                 '<div class="metric-row"><span class="label">ROE</span><span class="value ' + pctClass(f.roe) + '">' + fmtPct(f.roe) + '</span></div>' +
                 '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + pctClass(f.profit_margin, 10, 5) + '">' + fmtPct(f.profit_margin) + '</span></div>' +
                 '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + fmtPct(f.gross_margin) + '</span></div>' +
+                (g.revenue != null ? '<div class="metric-row"><span class="label">Revenue Growth' + trend(g.revenue_trend) + '</span><span class="value ' + (g.revenue > 10 ? 'good' : g.revenue > 0 ? 'warn' : 'bad') + '">' + g.revenue.toFixed(1) + '%</span></div>' : '') +
+                (g.earnings != null ? '<div class="metric-row"><span class="label">Earnings Growth' + trend(g.earnings_trend) + '</span><span class="value ' + (g.earnings > 10 ? 'good' : g.earnings > 0 ? 'warn' : 'bad') + '">' + g.earnings.toFixed(1) + '%</span></div>' : '') +
             '</div>' +
             '<div class="card"><div class="card-title">🏦 Balance Sheet</div>' +
                 '<div class="metric-row"><span class="label">Cash</span><span class="value ' + (f.cash ? 'good' : '') + '">' + formatNum(f.cash) + '</span></div>' +
@@ -830,11 +969,25 @@ function displayStock(data) {
                 '<div class="metric-row"><span class="label">Net Cash</span><span class="value ' + (f.cash >= f.debt ? 'good' : 'bad') + '">' + (f.cash != null && f.debt != null ? formatNum(f.cash - f.debt) : 'N/A') + '</span></div>' +
                 '<div class="metric-row"><span class="label">Free Cash Flow</span><span class="value ' + (f.fcf > 0 ? 'good' : f.fcf != null ? 'bad' : '') + '">' + formatNum(f.fcf) + '</span></div>' +
             '</div>' +
+            rule1Html +
             scoreSection +
+            algoHtml +
         '</div>';
     
     document.getElementById('detail').className = 'detail-view active';
     window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function toggleAlgo() {
+    var el = document.getElementById('algoDetail');
+    var toggle = document.querySelector('.algo-toggle');
+    if (el.style.display === 'none') {
+        el.style.display = 'block';
+        toggle.textContent = '🔬 Hide Algorithm Details ▲';
+    } else {
+        el.style.display = 'none';
+        toggle.textContent = '🔬 View Algorithm Details — How Everything is Calculated ▼';
+    }
 }
 
 function back() {
