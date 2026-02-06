@@ -1,11 +1,15 @@
-"""Bug report endpoint - sends email via Formspree"""
+"""Bug report endpoint - logs reports and optionally emails via Formspree"""
 from http.server import BaseHTTPRequestHandler
 import json
 import os
 from datetime import datetime
 
-# Using Formspree for free email forwarding
-# Sign up at formspree.io, create a form, and put the form ID here
+# SETUP FOR EMAIL NOTIFICATIONS:
+# 1. Go to formspree.io and sign up (free)
+# 2. Create a new form - it will give you an ID like "xyzabcde"
+# 3. In Vercel dashboard: Settings > Environment Variables
+# 4. Add: FORMSPREE_ID = your_form_id
+# Without this, reports are logged to Vercel function logs only
 FORMSPREE_ID = os.environ.get('FORMSPREE_ID', '')
 
 class handler(BaseHTTPRequestHandler):
@@ -30,35 +34,38 @@ class handler(BaseHTTPRequestHandler):
                 self.wfile.write(json.dumps({'ok': False, 'error': 'Empty message'}).encode())
                 return
             
+            # Always log to Vercel function logs (Vercel dashboard > Deployments > Functions > Logs)
+            print(f"===== BUG REPORT =====")
+            print(f"Time: {timestamp}")
+            print(f"Message: {message}")
+            print(f"Page: {page}")
+            print(f"UA: {user_agent}")
+            print(f"======================")
+            
+            email_sent = False
             if FORMSPREE_ID:
-                import urllib.request
-                formspree_data = json.dumps({
-                    'message': message,
-                    'page': page,
-                    'user_agent': user_agent,
-                    'timestamp': timestamp,
-                    '_subject': 'Bosdet Labs Bug Report'
-                }).encode()
-                
-                req = urllib.request.Request(
-                    f'https://formspree.io/f/{FORMSPREE_ID}',
-                    data=formspree_data,
-                    headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
-                )
-                urllib.request.urlopen(req, timeout=5)
+                try:
+                    import urllib.request
+                    formspree_data = json.dumps({
+                        'message': f"BUG REPORT\n\n{message}\n\nPage: {page}\nTime: {timestamp}",
+                        '_subject': 'Bosdet Labs Bug Report'
+                    }).encode()
+                    
+                    req = urllib.request.Request(
+                        f'https://formspree.io/f/{FORMSPREE_ID}',
+                        data=formspree_data,
+                        headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+                    )
+                    urllib.request.urlopen(req, timeout=5)
+                    email_sent = True
+                except Exception as email_err:
+                    print(f"Formspree error: {email_err}")
             
-            # Always log to Vercel function logs (visible in Vercel dashboard)
-            print(f"[BUG REPORT] {timestamp}")
-            print(f"  Message: {message}")
-            print(f"  Page: {page}")
-            print(f"  UA: {user_agent}")
-            
-            self.wfile.write(json.dumps({'ok': True}).encode())
+            self.wfile.write(json.dumps({'ok': True, 'email_sent': email_sent, 'logged': True}).encode())
             
         except Exception as e:
             print(f"Bug report error: {e}")
-            # Still return success to user - report is logged in Vercel function logs
-            self.wfile.write(json.dumps({'ok': True}).encode())
+            self.wfile.write(json.dumps({'ok': True, 'logged': True}).encode())
     
     def do_OPTIONS(self):
         self.send_response(200)
