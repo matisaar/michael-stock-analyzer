@@ -435,18 +435,43 @@ async function analyze(sym) {
         showError('Please enter a stock ticker or company name');
         return;
     }
-    // Use the input directly as a ticker (user selects from suggestions or types ticker)
-    sym = rawInput.trim().toUpperCase();
-    document.getElementById('searchInput').value = sym;
-    document.getElementById('suggestions').style.display = 'none';
     
+    document.getElementById('suggestions').style.display = 'none';
     document.getElementById('loading').style.display = 'block';
     document.getElementById('error').style.display = 'none';
     document.getElementById('grid').style.display = 'none';
     document.getElementById('detail').className = 'detail-view';
     
+    const query = rawInput.trim();
+    let tickerToAnalyze = query.toUpperCase();
+    
+    // Check if it looks like a company name (has spaces, >5 chars, or lowercase)
+    const looksLikeName = query.includes(' ') || query.length > 5 || query !== query.toUpperCase();
+    
+    if (looksLikeName) {
+        // Search Yahoo Finance to resolve to a ticker
+        setLoadingText('🔍 Searching for "' + query + '"...');
+        try {
+            const searchResp = await fetch(API_BASE + '/api/search/' + encodeURIComponent(query));
+            const searchData = await searchResp.json();
+            if (searchData.results && searchData.results.length > 0) {
+                tickerToAnalyze = searchData.results[0].symbol;
+                setLoadingText('📊 Analyzing ' + searchData.results[0].name + ' (' + tickerToAnalyze + ')...');
+            } else {
+                setLoadingText('📊 Trying "' + tickerToAnalyze + '"...');
+            }
+        } catch (e) {
+            // Search failed, try the raw input as ticker anyway
+            setLoadingText('📊 Analyzing ' + tickerToAnalyze + '...');
+        }
+    } else {
+        setLoadingText('📊 Analyzing ' + tickerToAnalyze + '...');
+    }
+    
+    document.getElementById('searchInput').value = tickerToAnalyze;
+    
     try {
-        const resp = await fetch(API_BASE + '/api/analyze/' + sym);
+        const resp = await fetch(API_BASE + '/api/analyze/' + encodeURIComponent(tickerToAnalyze));
         const data = await resp.json();
         
         document.getElementById('loading').style.display = 'none';
@@ -463,6 +488,12 @@ async function analyze(sym) {
         showError('Error analyzing stock. Please try again.');
         document.getElementById('grid').style.display = 'block';
     }
+}
+
+function setLoadingText(text) {
+    const loadingEl = document.getElementById('loading');
+    let p = loadingEl.querySelector('p');
+    if (p) p.textContent = text;
 }
 
 function displayAnalysis(data) {

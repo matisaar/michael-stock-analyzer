@@ -1,6 +1,8 @@
-"""Analyze stock using yfinance"""
+"""Analyze stock using yfinance - auto-resolves company names to tickers"""
 from http.server import BaseHTTPRequestHandler
 import json
+import urllib.request
+import urllib.parse
 from datetime import datetime
 import yfinance as yf
 
@@ -17,6 +19,40 @@ def format_number(n):
     if abs(n) >= 1e3:
         return f'{n/1e3:.0f}K'
     return f'{n:.0f}'
+
+def resolve_symbol(query):
+    """Search Yahoo Finance to resolve a company name or partial ticker to a real ticker symbol.
+    Returns (resolved_symbol, company_name) or (None, None) if not found."""
+    try:
+        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=true&quotesQueryId=tss_match_phrase_query"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+        req = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(req, timeout=8) as response:
+            data = json.loads(response.read().decode())
+            quotes = data.get('quotes', [])
+            for quote in quotes:
+                qt = quote.get('quoteType', '')
+                if qt in ('EQUITY', 'ETF'):
+                    sym = quote.get('symbol', '')
+                    name = quote.get('shortname') or quote.get('longname') or sym
+                    if sym:
+                        return sym, name
+    except Exception as e:
+        print(f"resolve_symbol error: {e}")
+    return None, None
+
+def try_yfinance(symbol):
+    """Try to get stock info via yfinance. Returns info dict or None."""
+    try:
+        stock = yf.Ticker(symbol)
+        info = stock.info
+        if info and (info.get('regularMarketPrice') or info.get('currentPrice')):
+            return info
+    except Exception:
+        pass
+    return None
 
 def safe_get(info, key, default=0):
     """Safely get value from info dict"""
@@ -129,7 +165,9 @@ def get_recommendation(score, upside):
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        symbol = self.path.split('/')[-1].split('?')[0].upper()
+        raw_input = self.path.split('/')[-1].split('?')[0]
+        raw_input_decoded = urllib.parse.unquote(raw_input)
+        symbol = raw_input_decoded.upper().strip()
         
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
@@ -137,13 +175,21 @@ class handler(BaseHTTPRequestHandler):
         self.end_headers()
         
         try:
-            # Get stock data using yfinance
-            stock = yf.Ticker(symbol)
-            info = stock.info
+            # Step 1: Try direct yfinance lookup with the input as-is
+            info = try_yfinance(symbol)
             
-            if not info or 'regularMarketPrice' not in info and 'currentPrice' not in info:
+            # Step 2: If that fails, search Yahoo Finance to resolve the name
+            resolved_name = None
+            if info is None:
+                resolved_sym, resolved_name = resolve_symbol(raw_input_decoded)
+                if resolved_sym:
+                    symbol = resolved_sym.upper()
+                    info = try_yfinance(symbol)
+            
+            # Step 3: If still nothing, give up with helpful error
+            if info is None:
                 self.wfile.write(json.dumps({
-                    'error': f'Could not find {symbol}',
+                    'error': f'Could not find "{raw_input_decoded}". Try a ticker symbol like AAPL, TSLA, or MSFT.',
                     'symbol': symbol
                 }).encode())
                 return
