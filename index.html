@@ -227,10 +227,16 @@
         .rec-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; overflow: hidden; }
         .rec-card:active { transform: scale(0.98); }
-        .rec-card .reason { font-size: 12px; color: var(--green); margin-top: 8px; padding: 6px 10px; background: var(--green-muted); border-radius: 8px; }
-        .rec-card .match-type { font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
-        .rec-card .match-type.sector_match { background: var(--green-muted); color: var(--green); }
-        .rec-card .match-type.diversify { background: var(--amber-muted); color: var(--amber); }
+        .rec-card .reason { font-size: 12px; color: var(--green); margin-top: 8px; padding: 6px 10px; background: var(--green-muted); border-radius: 8px; display: none; }
+        .rec-card .match-type { display: none; }
+        .rec-card .match-type.sector_match { display: none; }
+        .rec-card .match-type.diversify { display: none; }
+        .rec-card .r1-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+        .rec-card .r1-stat { font-size: 11px; color: #888; }
+        .rec-card .r1-stat .val { font-weight: 600; color: #e8e8e8; }
+        .rec-card .r1-stat .val.good { color: var(--green); }
+        .rec-card .r1-stat .val.bad { color: var(--red); }
+        .rec-card .moat-badge { font-size: 10px; padding: 2px 8px; border-radius: 6px; font-weight: 600; background: var(--green-muted); color: var(--green); }
         .rec-empty { text-align: center; padding: 50px 16px; }
         .rec-empty .icon { font-size: 32px; margin-bottom: 10px; }
         .rec-empty p { color: var(--text-muted); font-size: 13px; line-height: 1.5; }
@@ -422,7 +428,7 @@
             <div class="section-title">Recommended for you</div>
             <div id="profileSummary" style="margin-bottom:14px"></div>
             <div id="recGrid" class="rec-grid">
-                <div class="rec-empty"><div class="icon">↗</div><p>Save some stocks first — we'll find similar opportunities based on your taste.</p></div>
+                <div class="rec-empty"><div class="icon">↗</div><p>Save some stocks first — we'll analyze Rule #1 fundamentals to find quality picks.</p></div>
             </div>
         </div>
         
@@ -598,7 +604,7 @@ async function loadRecommendations() {
     const summary = document.getElementById('profileSummary');
     
     if (Object.keys(watchlistMap).length === 0) {
-        grid.innerHTML = '<div class="rec-empty" style="grid-column:1/-1"><div class="icon">↗</div><p>Save some stocks first — we\'ll find similar opportunities based on your taste.</p></div>';
+        grid.innerHTML = '<div class="rec-empty" style="grid-column:1/-1"><div class="icon">↗</div><p>Save some stocks first — we\'ll analyze Rule #1 fundamentals to find quality picks.</p></div>';
         summary.innerHTML = '';
         return;
     }
@@ -632,19 +638,23 @@ async function loadRecommendations() {
             grid.innerHTML = data.recommendations.map(function(r) {
                 var scoreClass = r.score >= 60 ? 'score-high' : r.score >= 40 ? 'score-medium' : 'score-low';
                 var upsideClass = r.upside >= 0 ? 'up' : 'down';
-                var matchLabel = r.match_type === 'sector_match' ? 'Sector Match' : 'Diversify';
                 
                 return '<div class="rec-card" onclick="analyze(\'' + r.symbol + '\')">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
-                        '<div><h3 style="font-size:16px;margin-bottom:2px">' + (r.name || r.symbol) + '</h3>' +
+                        '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (r.name || r.symbol) + '</h3>' +
                         '<span style="color:#555;font-size:13px">' + r.symbol + ' • ' + (r.sector || '') + '</span></div>' +
-                        '<span class="match-type ' + r.match_type + '">' + matchLabel + '</span>' +
+                        (r.has_moat ? '<span class="moat-badge">Moat</span>' : '') +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">' +
                         '<span style="font-size:22px;font-weight:700">$' + r.price.toFixed(2) + '</span>' +
                         '<div class="badges"><span class="badge ' + upsideClass + '">' + (r.upside >= 0 ? '↑' : '↓') + ' ' + Math.abs(r.upside).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + r.score + '</span></div>' +
                     '</div>' +
-                    '<div class="reason">' + r.reason + '</div>' +
+                    '<div class="r1-stats">' +
+                        '<span class="r1-stat">ROIC <span class="val ' + (r.roic >= 10 ? 'good' : r.roic != null && r.roic < 10 ? 'bad' : '') + '">' + (r.roic != null ? r.roic.toFixed(1) + '%' : 'N/A') + '</span></span>' +
+                        '<span class="r1-stat">ROE <span class="val ' + (r.roe >= 15 ? 'good' : r.roe != null && r.roe < 10 ? 'bad' : '') + '">' + (r.roe != null ? r.roe.toFixed(1) + '%' : 'N/A') + '</span></span>' +
+                        (r.revenue_growth != null ? '<span class="r1-stat">Rev <span class="val ' + (r.revenue_growth >= 10 ? 'good' : '') + '">' + r.revenue_growth.toFixed(1) + '%</span></span>' : '') +
+                        (r.eps_growth != null ? '<span class="r1-stat">EPS <span class="val ' + (r.eps_growth >= 10 ? 'good' : '') + '">' + r.eps_growth.toFixed(1) + '%</span></span>' : '') +
+                    '</div>' +
                 '</div>';
             }).join('');
         } else if (data.message) {
