@@ -228,6 +228,28 @@
         .rec-empty { text-align: center; padding: 50px 16px; }
         .rec-empty .icon { font-size: 48px; margin-bottom: 12px; }
         .rec-empty p { color: #555; font-size: 14px; line-height: 1.6; }
+
+            .toast {
+                position: fixed;
+                left: 50%;
+                bottom: 22px;
+                transform: translateX(-50%) translateY(20px);
+                background: rgba(17,17,17,0.95);
+                color: #fff;
+                border: 1px solid #222;
+                padding: 10px 14px;
+                border-radius: 10px;
+                font-size: 13px;
+                opacity: 0;
+                pointer-events: none;
+                transition: all 0.25s ease;
+                z-index: 9999;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+            }
+            .toast.show {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         
         /* Suggestions Dropdown */
         .suggestions {
@@ -485,6 +507,7 @@
         <footer>
             Bosdet Labs © 2026 • Built with 🧪 & ❤️
         </footer>
+        <div id="toast" class="toast"></div>
     </div>
 
 <script>
@@ -493,6 +516,7 @@ const API_BASE = window.location.origin;
 // Watchlist state - localStorage is the source of truth
 let watchlistMap = {}; // symbol -> row data
 let currentStockData = null;
+let toastTimer = null;
 
 // ========== WATCHLIST (localStorage) ==========
 function loadWatchlist() {
@@ -507,6 +531,15 @@ function loadWatchlist() {
 
 function persistWatchlist() {
     try { localStorage.setItem('bosdet_watchlist', JSON.stringify(watchlistMap)); } catch(e) {}
+}
+
+function showToast(message) {
+    var el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = message;
+    el.classList.add('show');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { el.classList.remove('show'); }, 1800);
 }
 
 function updateWatchlistBadge() {
@@ -525,7 +558,8 @@ function isInWatchlist(symbol) {
 }
 
 function toggleWatchlist(symbol, name, sector, industry, score, price) {
-    if (isInWatchlist(symbol)) {
+    var willSave = !isInWatchlist(symbol);
+    if (!willSave) {
         delete watchlistMap[symbol];
     } else {
         watchlistMap[symbol] = {
@@ -541,6 +575,7 @@ function toggleWatchlist(symbol, name, sector, industry, score, price) {
     persistWatchlist();
     updateWatchlistBadge();
     updateAllHeartButtons(symbol);
+    showToast(willSave ? 'Saved to Watchlist' : 'Removed from Watchlist');
 }
 
 function updateAllHeartButtons(symbol) {
