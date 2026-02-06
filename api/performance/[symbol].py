@@ -1,0 +1,69 @@
+"""Get historical price performance for a stock - 1D, 1W, 1M, 3M, 6M, 1Y"""
+from http.server import BaseHTTPRequestHandler
+import json
+from datetime import datetime, timedelta
+import yfinance as yf
+
+
+class handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
+        # Extract symbol from path
+        path = self.path.split('?')[0]
+        symbol = path.rstrip('/').split('/')[-1].upper()
+
+        if not symbol or len(symbol) > 10:
+            self.wfile.write(json.dumps({'error': 'Invalid symbol'}).encode())
+            return
+
+        try:
+            stock = yf.Ticker(symbol)
+            # Get 1 year + a few days of history
+            hist = stock.history(period='1y', interval='1d')
+
+            if hist.empty or len(hist) < 2:
+                self.wfile.write(json.dumps({'error': 'No price data available'}).encode())
+                return
+
+            current_price = float(hist['Close'].iloc[-1])
+            today = hist.index[-1]
+
+            def pct_change_since(days_ago):
+                """Calculate % change from approximately N trading days ago."""
+                target_date = today - timedelta(days=days_ago)
+                # Find the closest date at or before target
+                mask = hist.index <= target_date
+                if mask.any():
+                    old_price = float(hist.loc[mask, 'Close'].iloc[-1])
+                    if old_price > 0:
+                        return round(((current_price - old_price) / old_price) * 100, 2)
+                return None
+
+            # 1D: compare to previous close
+            prev_close = float(hist['Close'].iloc[-2]) if len(hist) >= 2 else None
+            change_1d = round(((current_price - prev_close) / prev_close) * 100, 2) if prev_close else None
+
+            performance = {
+                'symbol': symbol,
+                'current_price': round(current_price, 2),
+                'timeframes': {
+                    '1D': change_1d,
+                    '1W': pct_change_since(7),
+                    '1M': pct_change_since(30),
+                    '3M': pct_change_since(90),
+                    '6M': pct_change_since(180),
+                    '1Y': pct_change_since(365),
+                },
+                'week_52_high': round(float(hist['Close'].max()), 2),
+                'week_52_low': round(float(hist['Close'].min()), 2),
+                'off_high_pct': round(((current_price - float(hist['Close'].max())) / float(hist['Close'].max())) * 100, 1),
+            }
+
+            self.wfile.write(json.dumps(performance).encode())
+
+        except Exception as e:
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
