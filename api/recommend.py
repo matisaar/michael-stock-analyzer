@@ -207,12 +207,14 @@ def rule1_score(info, price):
 
 
 def build_profile(watchlist):
-    """Extract preferences from user's watchlist."""
+    """Extract deep investment profile from user's watchlist.
+    Learns: sector preference, score range, price tier, and investment style."""
     if not watchlist:
         return None
 
     sectors = {}
     scores = []
+    prices = []
 
     for item in watchlist:
         s = item.get('sector', '')
@@ -221,15 +223,37 @@ def build_profile(watchlist):
         sc = item.get('score', 0)
         if sc:
             scores.append(sc)
+        p = item.get('price_at_save', 0) or item.get('price', 0)
+        if p and p > 0:
+            prices.append(p)
 
     avg_score = sum(scores) / len(scores) if scores else 50
     top_sectors = sorted(sectors.items(), key=lambda x: -x[1])
     top_sector_names = [s[0] for s in top_sectors[:3]]
 
+    # Sector weights (normalized): how much the user cares about each sector
+    total_sector_saves = sum(sectors.values()) if sectors else 1
+    sector_weights = {s: c / total_sector_saves for s, c in sectors.items()}
+
+    # Price tier: what price range does user tend to save?
+    avg_price = sum(prices) / len(prices) if prices else 200
+    min_price = min(prices) if prices else 0
+    max_price = max(prices) if prices else 1000
+
+    # Score preference: user tends to save stocks in this range
+    min_score = min(scores) if scores else 0
+    max_score = max(scores) if scores else 100
+
     return {
         'sectors': sectors,
+        'sector_weights': sector_weights,
         'top_sectors': top_sector_names,
         'avg_score': avg_score,
+        'min_score': min_score,
+        'max_score': max_score,
+        'avg_price': avg_price,
+        'min_price': min_price,
+        'max_price': max_price,
         'count': len(watchlist),
         'saved_symbols': set(item.get('symbol', '') for item in watchlist),
     }
@@ -326,11 +350,52 @@ class handler(BaseHTTPRequestHandler):
 
                 # Score using Rule #1 principles
                 r1 = rule1_score(info, price)
-                score = r1['score']
+                quality_score = r1['score']
 
-                # Only recommend stocks scoring ≥ 30 (has some Rule #1 merit)
-                if score < 30:
+                # Only recommend stocks with some Rule #1 merit
+                if quality_score < 25:
                     continue
+
+                # ── ADAPTIVE AFFINITY SCORING ──
+                # Combines Rule #1 quality (60%) with user preference fit (40%)
+                affinity = 0
+                max_affinity = 40
+
+                # Sector affinity (up to 15 pts): weighted by how much user saves from this sector
+                stock_sector = safe_get(info, 'sector', sector)
+                sector_w = profile['sector_weights']
+                best_match = 0
+                for user_sector, weight in sector_w.items():
+                    if user_sector.lower() in stock_sector.lower() or stock_sector.lower() in user_sector.lower():
+                        best_match = max(best_match, weight)
+                affinity += best_match * 15
+
+                # Score range affinity (up to 10 pts): is this stock's quality near what user tends to save?
+                score_mid = (profile['min_score'] + profile['max_score']) / 2
+                score_range = max(profile['max_score'] - profile['min_score'], 20)
+                score_dist = abs(quality_score - score_mid)
+                if score_dist <= score_range / 2:
+                    affinity += 10
+                elif score_dist <= score_range:
+                    affinity += 5
+
+                # Price tier affinity (up to 10 pts): does this stock fit user's typical price range?
+                price_mid = profile['avg_price']
+                price_range = max(profile['max_price'] - profile['min_price'], 50)
+                price_dist = abs(price - price_mid)
+                if price_dist <= price_range * 0.5:
+                    affinity += 10
+                elif price_dist <= price_range:
+                    affinity += 5
+                elif price_dist <= price_range * 2:
+                    affinity += 2
+
+                # Diversification bonus (up to 5 pts): if user has few sectors, nudge new ones
+                if stock_sector not in profile['sectors'] and len(profile['sectors']) < 3:
+                    affinity += 5
+
+                # Combine: 60% Rule #1 quality + 40% affinity
+                final_score = int(quality_score * 0.6 + min(affinity, max_affinity) * 0.4 / max_affinity * 100 * 0.4)
 
                 # Calculate upside from sticker price
                 upside = 0
@@ -340,9 +405,9 @@ class handler(BaseHTTPRequestHandler):
                 recommendations.append({
                     'symbol': ticker,
                     'name': safe_get(info, 'longName') or safe_get(info, 'shortName', ticker),
-                    'sector': safe_get(info, 'sector', sector),
+                    'sector': stock_sector,
                     'price': round(price, 2),
-                    'score': score,
+                    'score': quality_score,
                     'upside': round(upside, 1),
                     'roic': r1['roic'],
                     'roe': r1['roe'],
@@ -351,15 +416,20 @@ class handler(BaseHTTPRequestHandler):
                     'has_moat': r1['has_moat'],
                     'mos_price': r1['mos_price'],
                     'market_cap': safe_get(info, 'marketCap', 0),
+                    '_final': final_score,
                 })
 
             except Exception as e:
                 print(f"Recommend error {ticker}: {e}")
                 continue
 
-        # Sort by Rule #1 score (best first), then by upside
-        recommendations.sort(key=lambda x: (-x['score'], -x['upside']))
+        # Sort by combined score (Rule #1 quality + affinity), then by upside
+        recommendations.sort(key=lambda x: (-x['_final'], -x['score'], -x['upside']))
         top_recs = recommendations[:6]
+
+        # Remove internal scoring field from output
+        for r in top_recs:
+            r.pop('_final', None)
 
         self.wfile.write(json.dumps({
             'recommendations': top_recs,
