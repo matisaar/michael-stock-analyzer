@@ -63,10 +63,11 @@
         .stock-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
         .stock-card { 
             background: var(--surface); border: 1px solid var(--border); border-radius: 12px; 
-            padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s;
+            padding: 16px; cursor: pointer; transition: all 0.15s;
             -webkit-user-select: none; user-select: none;
         }
         .stock-card:active { transform: scale(0.98); background: var(--surface-alt); }
+        .stock-card .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .stock-card h3 { font-size: 15px; font-weight: 650; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
         .stock-card .ticker { color: var(--text-muted); font-size: 13px; font-weight: 500; }
         .stock-card .price { font-size: 22px; font-weight: 700; margin-top: 10px; }
@@ -193,11 +194,10 @@
         .save-btn { background: none; border: 1px solid var(--border); border-radius: 10px; width: 44px; height: 44px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
         .save-btn:active { transform: scale(0.9); }
         .save-btn.saved { border-color: var(--red); background: var(--red-muted); }
-        .card-save-btn { position: absolute; top: 4px; right: 4px; background: none; border: none; font-size: 14px; cursor: pointer; z-index: 50; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; opacity: 0.5; transition: all 0.15s; -webkit-tap-highlight-color: rgba(239,68,68,0.2); }
-        .card-save-btn:hover { opacity: 1; }
+        .card-save-btn { background: none; border: none; font-size: 18px; cursor: pointer; width: 36px; height: 36px; min-width: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; opacity: 0.65; transition: all 0.15s; flex-shrink: 0; -webkit-tap-highlight-color: rgba(239,68,68,0.2); padding: 0; touch-action: manipulation; }
+        .card-save-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
         .card-save-btn:active { transform: scale(0.85); opacity: 1; }
-        .card-save-btn.saved { opacity: 1; background: var(--red-muted); }
-        .stock-card, .discover-card, .watchlist-card, .rec-card { position: relative; }
+        .card-save-btn.saved { opacity: 1; }
 
         /* Performance Chips */
         .perf-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
@@ -218,14 +218,14 @@
 
         /* Watchlist */
         .watchlist-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .watchlist-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s; }
+        .watchlist-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; }
         .watchlist-card:active { transform: scale(0.98); }
         .watchlist-card .wl-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
         .watchlist-card .wl-saved-info { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
         /* Recommendations */
         .rec-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 48px; cursor: pointer; transition: all 0.15s; overflow: hidden; }
+        .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; overflow: hidden; }
         .rec-card:active { transform: scale(0.98); }
         .rec-card .reason { font-size: 12px; color: var(--green); margin-top: 8px; padding: 6px 10px; background: var(--green-muted); border-radius: 8px; }
         .rec-card .match-type { font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 600; }
@@ -255,10 +255,10 @@
         .btn-discover:active { transform: scale(0.97); }
         .btn-discover:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .discover-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .discover-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s; -webkit-user-select: none; user-select: none; }
+        .discover-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; -webkit-user-select: none; user-select: none; }
         .discover-card:active { transform: scale(0.98); background: var(--surface-alt); }
-        .discover-card .card-top { margin-bottom: 10px; }
-        .discover-card .card-top h3 { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .discover-card .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+        .discover-card .card-header h3 { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; min-width: 0; }
         .discover-card .card-top .ticker-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .discover-card .sector-tag { font-size: 10px; color: var(--text-secondary); background: #1a1a1a; padding: 2px 7px; border-radius: 5px; font-weight: 600; white-space: nowrap; }
         .discover-card .price-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
@@ -569,11 +569,11 @@ async function loadWatchlistView() {
                 const scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
                 
                 return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
-                    '<button class="card-save-btn saved" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button>' +
                     '<div class="wl-top">' +
-                        '<div><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
-                        '<div style="text-align:right"><div style="font-size:22px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
+                        '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
+                        '<div style="display:flex;align-items:flex-start;gap:8px"><div style="text-align:right"><div style="font-size:22px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
                         '<span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div>' +
+                        '<button class="card-save-btn saved" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button></div>' +
                     '</div>' +
                     (gainPct !== null ? '<div class="wl-saved-info">Since saved: <span style="color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</span> (from $' + savedPrice.toFixed(2) + ')</div>' : '') +
                 '</div>';
@@ -786,9 +786,9 @@ function displayDiscoverCards(picks) {
         var heartClass = isInWatchlist(s.symbol) ? 'card-save-btn saved' : 'card-save-btn';
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
         return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
-            '<button class="' + heartClass + '" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button>' +
-            '<div class="card-top"><h3>' + (s.name || s.symbol) + '</h3>' +
+            '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3>' +
             '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.sector || 'Stock') + '</span></div></div>' +
+            '<button class="' + heartClass + '" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
             '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div></div>' +
             '<div class="mini-stats">' +
@@ -827,8 +827,8 @@ function displayStockGrid(stocks) {
         var heartClass = isInWatchlist(s.symbol) ? 'card-save-btn saved' : 'card-save-btn';
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
         return '<div class="stock-card" onclick="analyze(\'' + s.symbol + '\')">' +
-            '<button class="' + heartClass + '" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button>' +
-            '<h3>' + (s.name || s.symbol) + '</h3><span class="ticker">' + s.symbol + '</span>' +
+            '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3><span class="ticker">' + s.symbol + '</span></div>' +
+            '<button class="' + heartClass + '" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price">$' + (s.price || 0).toFixed(2) + '</div>' +
             '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '% upside</span><span class="badge ' + scoreClass + '">Score: ' + (s.score || 0) + '</span></div>' +
         '</div>';
