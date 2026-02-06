@@ -497,26 +497,38 @@ function setLoadingText(text) {
 }
 
 function displayAnalysis(data) {
+    if (data.is_etf) {
+        displayETF(data);
+    } else {
+        displayStock(data);
+    }
+}
+
+function fmtPct(v) { return v != null ? v.toFixed(1) + '%' : 'N/A'; }
+function fmtRatio(v, d) { return v != null ? v.toFixed(d || 1) + 'x' : 'N/A'; }
+function pctClass(v, good, warn) { 
+    if (v == null) return ''; 
+    return v > (good||10) ? 'good' : v > (warn||5) ? 'warn' : ''; 
+}
+
+function buildHeader(data) {
     const q = data.quote || {};
-    const f = data.fundamentals || {};
     const rec = data.recommendation || {};
-    const checks = data.checklist || [];
-    
     const price = q.price || 0;
-    const fairValue = data.fair_value || price;
     const upside = data.upside_percent || 0;
+    const fairValue = data.fair_value || price;
     const score = data.investment_score || 0;
+    const checks = data.checklist || [];
     
     const changeClass = (q.change_percent || 0) >= 0 ? 'up' : 'down';
     const changeSymbol = (q.change_percent || 0) >= 0 ? '↑' : '↓';
-    
     const col = score >= 60 ? '#00d374' : (score >= 40 ? '#ffb800' : '#ff5252');
     const circ = 2 * Math.PI * 55;
     const off = circ - (score / 100) * circ;
     
     let alertHtml = '';
     if (upside > 20) {
-        alertHtml = '<div class="alert"><span class="alert-icon">💎</span><div><h3>Opportunity Detected!</h3><p>' + data.symbol + ' appears to be ' + upside.toFixed(0) + '% undervalued based on fair value analysis</p></div></div>';
+        alertHtml = '<div class="alert"><span class="alert-icon">💎</span><div><h3>Opportunity Detected!</h3><p>' + data.symbol + ' appears to be ' + upside.toFixed(0) + '% undervalued</p></div></div>';
     }
     
     let checklistHtml = '';
@@ -527,18 +539,18 @@ function displayAnalysis(data) {
         checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span>' + c.text + '</li>';
     }
     
-    document.getElementById('detail').innerHTML = 
+    const topSection = 
         '<button class="back-btn" onclick="back()">← Back to all stocks</button>' +
         alertHtml +
         '<div class="recommendation-card" style="border-left: 4px solid ' + (rec.color || '#666') + '">' +
             '<div><div class="signal" style="color: ' + (rec.color || '#fff') + '">' + (rec.signal || 'ANALYZING') + '</div>' +
-            '<div class="reason">' + (rec.reason || 'Based on investment criteria') + '</div></div>' +
+            '<div class="reason">' + (rec.reason || '') + '</div></div>' +
         '</div>' +
         '<div class="header-card">' +
             '<div class="header-left">' +
                 '<div class="stock-logo">' + data.symbol.slice(0,4) + '</div>' +
                 '<div class="header-info"><h2>' + (q.name || data.symbol) + '</h2>' +
-                '<span class="meta">' + data.symbol + ' • ' + (q.industry || q.sector || 'Stock') + '</span></div>' +
+                '<span class="meta">' + data.symbol + ' • ' + (q.industry || q.sector || '') + '</span></div>' +
             '</div>' +
             '<div class="header-right">' +
                 '<div class="current-price">$' + price.toFixed(2) + '</div>' +
@@ -552,33 +564,71 @@ function displayAnalysis(data) {
                 '<div class="detail-item"><label>Fair Value</label><span style="color:#00d374">$' + fairValue.toFixed(2) + '</span></div>' +
                 '<div class="detail-item"><label>52W Range</label><span>$' + (q.week_52_low || 0).toFixed(0) + ' - $' + (q.week_52_high || 0).toFixed(0) + '</span></div>' +
             '</div>' +
-        '</div>' +
+        '</div>';
+    
+    const scoreSection = 
+        '<div class="card score-card"><div class="card-title">⭐ Investment Score</div>' +
+            '<div class="score-ring">' +
+                '<svg width="140" height="140"><circle class="bg" cx="70" cy="70" r="55"></circle><circle cx="70" cy="70" r="55" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
+                '<div class="score-text"><div class="num" style="color:' + col + '">' + score + '</div><div class="label">/100</div></div>' +
+            '</div>' +
+            '<ul class="checklist">' + checklistHtml + '</ul>' +
+        '</div>';
+    
+    return { topSection, scoreSection };
+}
+
+function displayETF(data) {
+    const f = data.fundamentals || {};
+    const q = data.quote || {};
+    const { topSection, scoreSection } = buildHeader(data);
+    
+    document.getElementById('detail').innerHTML = topSection +
+        '<div class="metrics-grid">' +
+            '<div class="card"><div class="card-title">📋 ETF Details</div>' +
+                '<div class="metric-row"><span class="label">Expense Ratio</span><span class="value ' + (f.expense_ratio != null && f.expense_ratio < 0.5 ? 'good' : '') + '">' + (f.expense_ratio != null ? f.expense_ratio.toFixed(2) + '%' : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">Dividend Yield</span><span class="value ' + (f.dividend_yield > 2 ? 'good' : '') + '">' + (f.dividend_yield != null ? f.dividend_yield.toFixed(2) + '%' : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">Beta</span><span class="value ' + (f.beta != null && f.beta < 1 ? 'good' : '') + '">' + (f.beta != null ? f.beta.toFixed(2) : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">Total Assets</span><span class="value">' + formatNum(f.total_assets) + '</span></div>' +
+            '</div>' +
+            '<div class="card"><div class="card-title">📈 Performance</div>' +
+                '<div class="metric-row"><span class="label">YTD Return</span><span class="value ' + (f.ytd_return > 0 ? 'good' : f.ytd_return != null ? 'bad' : '') + '">' + (f.ytd_return != null ? f.ytd_return.toFixed(1) + '%' : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">3-Year Avg Return</span><span class="value ' + (f.three_yr_return > 5 ? 'good' : '') + '">' + (f.three_yr_return != null ? f.three_yr_return.toFixed(1) + '%' : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">5-Year Avg Return</span><span class="value ' + (f.five_yr_return > 5 ? 'good' : '') + '">' + (f.five_yr_return != null ? f.five_yr_return.toFixed(1) + '%' : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">P/E Ratio</span><span class="value">' + fmtRatio(f.pe_ratio) + '</span></div>' +
+            '</div>' +
+            scoreSection +
+        '</div>';
+    
+    document.getElementById('detail').className = 'detail-view active';
+}
+
+function displayStock(data) {
+    const f = data.fundamentals || {};
+    const q = data.quote || {};
+    const { topSection, scoreSection } = buildHeader(data);
+    
+    document.getElementById('detail').innerHTML = topSection +
         '<div class="metrics-grid">' +
             '<div class="card"><div class="card-title">💰 Valuation</div>' +
-                '<div class="metric-row"><span class="label">P/E Ratio</span><span class="value">' + (f.pe_ratio || 0).toFixed(1) + 'x</span></div>' +
-                '<div class="metric-row"><span class="label">P/S Ratio</span><span class="value ' + ((f.ps_ratio || 0) < 2 ? 'good' : '') + '">' + (f.ps_ratio || 0).toFixed(2) + 'x</span></div>' +
-                '<div class="metric-row"><span class="label">P/B Ratio</span><span class="value">' + (f.pb_ratio || 0).toFixed(2) + 'x</span></div>' +
+                '<div class="metric-row"><span class="label">P/E Ratio</span><span class="value">' + fmtRatio(f.pe_ratio) + '</span></div>' +
+                '<div class="metric-row"><span class="label">P/S Ratio</span><span class="value ' + (f.ps_ratio != null && f.ps_ratio < 2 ? 'good' : '') + '">' + fmtRatio(f.ps_ratio, 2) + '</span></div>' +
+                '<div class="metric-row"><span class="label">P/B Ratio</span><span class="value">' + fmtRatio(f.pb_ratio, 2) + '</span></div>' +
                 '<div class="metric-row"><span class="label">Market Cap</span><span class="value">' + formatNum(q.market_cap) + '</span></div>' +
             '</div>' +
             '<div class="card"><div class="card-title">📊 Profitability</div>' +
-                '<div class="metric-row"><span class="label">ROA</span><span class="value ' + ((f.roa || 0) > 10 ? 'good' : (f.roa || 0) > 5 ? 'warn' : '') + '">' + (f.roa || 0).toFixed(1) + '%</span></div>' +
-                '<div class="metric-row"><span class="label">ROE</span><span class="value ' + ((f.roe || 0) > 10 ? 'good' : (f.roe || 0) > 5 ? 'warn' : '') + '">' + (f.roe || 0).toFixed(1) + '%</span></div>' +
-                '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + ((f.profit_margin || 0) > 10 ? 'good' : '') + '">' + (f.profit_margin || 0).toFixed(1) + '%</span></div>' +
-                '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + (f.gross_margin || 0).toFixed(1) + '%</span></div>' +
+                '<div class="metric-row"><span class="label">ROA</span><span class="value ' + pctClass(f.roa) + '">' + fmtPct(f.roa) + '</span></div>' +
+                '<div class="metric-row"><span class="label">ROE</span><span class="value ' + pctClass(f.roe) + '">' + fmtPct(f.roe) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Profit Margin</span><span class="value ' + pctClass(f.profit_margin, 10, 5) + '">' + fmtPct(f.profit_margin) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Gross Margin</span><span class="value">' + fmtPct(f.gross_margin) + '</span></div>' +
             '</div>' +
             '<div class="card"><div class="card-title">🏦 Balance Sheet</div>' +
-                '<div class="metric-row"><span class="label">Cash</span><span class="value good">' + formatNum(f.cash) + '</span></div>' +
-                '<div class="metric-row"><span class="label">Debt</span><span class="value ' + ((f.debt || 0) > (f.cash || 0) ? 'bad' : '') + '">' + formatNum(f.debt) + '</span></div>' +
-                '<div class="metric-row"><span class="label">Net Cash</span><span class="value ' + ((f.cash || 0) >= (f.debt || 0) ? 'good' : 'bad') + '">' + formatNum((f.cash || 0) - (f.debt || 0)) + '</span></div>' +
-                '<div class="metric-row"><span class="label">Free Cash Flow</span><span class="value ' + ((f.fcf || 0) > 0 ? 'good' : 'bad') + '">' + formatNum(f.fcf) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Cash</span><span class="value ' + (f.cash ? 'good' : '') + '">' + formatNum(f.cash) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Debt</span><span class="value ' + (f.debt > f.cash ? 'bad' : '') + '">' + formatNum(f.debt) + '</span></div>' +
+                '<div class="metric-row"><span class="label">Net Cash</span><span class="value ' + (f.cash >= f.debt ? 'good' : 'bad') + '">' + (f.cash != null && f.debt != null ? formatNum(f.cash - f.debt) : 'N/A') + '</span></div>' +
+                '<div class="metric-row"><span class="label">Free Cash Flow</span><span class="value ' + (f.fcf > 0 ? 'good' : f.fcf != null ? 'bad' : '') + '">' + formatNum(f.fcf) + '</span></div>' +
             '</div>' +
-            '<div class="card score-card"><div class="card-title">⭐ Investment Score</div>' +
-                '<div class="score-ring">' +
-                    '<svg width="140" height="140"><circle class="bg" cx="70" cy="70" r="55"></circle><circle cx="70" cy="70" r="55" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
-                    '<div class="score-text"><div class="num" style="color:' + col + '">' + score + '</div><div class="label">/100</div></div>' +
-                '</div>' +
-                '<ul class="checklist">' + checklistHtml + '</ul>' +
-            '</div>' +
+            scoreSection +
         '</div>';
     
     document.getElementById('detail').className = 'detail-view active';
@@ -596,7 +646,8 @@ function showError(msg) {
 }
 
 function formatNum(n) {
-    if (!n && n !== 0) return 'N/A';
+    if (n === null || n === undefined) return 'N/A';
+    if (n === 0) return '$0';
     if (Math.abs(n) >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T';
     if (Math.abs(n) >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
     if (Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';

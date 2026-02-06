@@ -199,98 +199,19 @@ class handler(BaseHTTPRequestHandler):
                 }).encode())
                 return
             
-            # Extract data
-            price = safe_get(info, 'currentPrice') or safe_get(info, 'regularMarketPrice', 0)
+            # Detect asset type
+            quote_type = info.get('quoteType', 'EQUITY')
+            is_etf = quote_type == 'ETF'
             
-            data = {
-                'price': price,
-                'roa': safe_get(info, 'returnOnAssets', 0),
-                'roe': safe_get(info, 'returnOnEquity', 0),
-                'cash': safe_get(info, 'totalCash', 0),
-                'debt': safe_get(info, 'totalDebt', 0),
-                'profit_margin': safe_get(info, 'profitMargins', 0),
-                'ps_ratio': safe_get(info, 'priceToSalesTrailing12Months', 0),
-                'fcf': safe_get(info, 'freeCashflow', 0),
-                'eps': safe_get(info, 'trailingEps', 0),
-            }
+            # Extract price
+            price = safe_get(info, 'currentPrice') or safe_get(info, 'regularMarketPrice') or safe_get(info, 'navPrice', 0)
             
-            # Calculate fair value - smarter approach
-            eps = data['eps']
-            pe = safe_get(info, 'trailingPE', 0)
-            forward_pe = safe_get(info, 'forwardPE', 0)
-            target_price = safe_get(info, 'targetMeanPrice', 0)  # Analyst target
-            
-            fair_values = []
-            
-            # Method 1: Analyst target price (most reliable)
-            if target_price and target_price > 0:
-                fair_values.append(target_price)
-            
-            # Method 2: Forward PE based (if growth stock)
-            if forward_pe and forward_pe > 0 and eps and eps > 0:
-                # Use forward PE as indicator of expected growth
-                growth_pe = min(forward_pe * 1.2, 30)  # Cap at 30x
-                fair_values.append(eps * growth_pe)
-            
-            # Method 3: Current PE regression to mean (for value stocks)
-            if pe and pe > 0 and pe < 25 and price > 0:
-                # Stock already reasonably valued, small upside
-                fair_values.append(price * 1.1)
-            elif pe and pe > 25 and price > 0:
-                # High PE stock - use current price as baseline
-                fair_values.append(price * 0.95)
-            
-            # Method 4: Simple EPS * industry PE
-            if eps and eps > 0 and not fair_values:
-                sector = safe_get(info, 'sector', '')
-                if 'Technology' in sector:
-                    fair_values.append(eps * 25)
-                elif 'Consumer' in sector:
-                    fair_values.append(eps * 20)
-                else:
-                    fair_values.append(eps * 18)
-            
-            fair_value = sum(fair_values) / len(fair_values) if fair_values else price
-            data['fair_value'] = fair_value
-            
-            # Calculate score
-            score, checks = calculate_score(data)
-            
-            # Upside
-            upside = ((fair_value - price) / price * 100) if price > 0 else 0
-            
-            result = {
-                'symbol': symbol,
-                'timestamp': datetime.now().isoformat(),
-                'quote': {
-                    'name': safe_get(info, 'longName') or safe_get(info, 'shortName', symbol),
-                    'price': price,
-                    'change_percent': safe_get(info, 'regularMarketChangePercent', 0),
-                    'market_cap': safe_get(info, 'marketCap', 0),
-                    'week_52_high': safe_get(info, 'fiftyTwoWeekHigh', 0),
-                    'week_52_low': safe_get(info, 'fiftyTwoWeekLow', 0),
-                    'industry': safe_get(info, 'industry', 'N/A'),
-                    'sector': safe_get(info, 'sector', 'N/A'),
-                },
-                'fundamentals': {
-                    'pe_ratio': safe_get(info, 'trailingPE', 0),
-                    'ps_ratio': data['ps_ratio'],
-                    'pb_ratio': safe_get(info, 'priceToBook', 0),
-                    'eps': data['eps'],
-                    'roa': to_pct(data['roa']),
-                    'roe': to_pct(data['roe']),
-                    'profit_margin': to_pct(data['profit_margin']),
-                    'gross_margin': to_pct(safe_get(info, 'grossMargins', 0)),
-                    'cash': data['cash'],
-                    'debt': data['debt'],
-                    'fcf': data['fcf'],
-                },
-                'fair_value': round(fair_value, 2),
-                'upside_percent': round(upside, 1),
-                'investment_score': score,
-                'checklist': checks,
-                'recommendation': get_recommendation(score, upside),
-            }
+            if is_etf:
+                # === ETF-specific analysis ===
+                result = build_etf_result(symbol, info, price)
+            else:
+                # === Stock analysis ===
+                result = build_stock_result(symbol, info, price)
             
             self.wfile.write(json.dumps(result).encode())
             
@@ -299,3 +220,230 @@ class handler(BaseHTTPRequestHandler):
                 'error': str(e),
                 'symbol': symbol
             }).encode())
+
+def build_etf_result(symbol, info, price):
+    """Build analysis result for an ETF."""
+    expense_ratio = safe_get(info, 'annualReportExpenseRatio', None)
+    total_assets = safe_get(info, 'totalAssets', 0)
+    ytd_return = safe_get(info, 'ytdReturn', None)
+    three_yr_return = safe_get(info, 'threeYearAverageReturn', None)
+    five_yr_return = safe_get(info, 'fiveYearAverageReturn', None)
+    dividend_yield = safe_get(info, 'yield', None) or safe_get(info, 'dividendYield', None)
+    beta = safe_get(info, 'beta3Year', None) or safe_get(info, 'beta', None)
+    
+    # ETF scoring
+    score = 0
+    checks = []
+    
+    # Expense ratio
+    if expense_ratio is not None:
+        er_pct = expense_ratio * 100 if expense_ratio < 1 else expense_ratio
+        if er_pct < 0.1:
+            score += 20
+            checks.append({'pass': True, 'text': f'Very low expense ratio ({er_pct:.2f}%)'})
+        elif er_pct < 0.5:
+            score += 15
+            checks.append({'pass': True, 'text': f'Low expense ratio ({er_pct:.2f}%)'})
+        elif er_pct < 1.0:
+            score += 5
+            checks.append({'pass': 'warn', 'text': f'Moderate expense ratio ({er_pct:.2f}%)'})
+        else:
+            checks.append({'pass': False, 'text': f'High expense ratio ({er_pct:.2f}%)'})
+    else:
+        checks.append({'pass': 'warn', 'text': 'Expense ratio data unavailable'})
+    
+    # Dividend yield
+    if dividend_yield is not None and dividend_yield > 0:
+        dy_pct = dividend_yield * 100 if dividend_yield < 1 else dividend_yield
+        if dy_pct > 3:
+            score += 15
+            checks.append({'pass': True, 'text': f'Strong yield ({dy_pct:.2f}%)'})
+        elif dy_pct > 1:
+            score += 10
+            checks.append({'pass': True, 'text': f'Decent yield ({dy_pct:.2f}%)'})
+        else:
+            score += 5
+            checks.append({'pass': 'warn', 'text': f'Low yield ({dy_pct:.2f}%)'})
+    else:
+        checks.append({'pass': 'warn', 'text': 'No dividend yield'})
+    
+    # 3-year return
+    if three_yr_return is not None:
+        ret_pct = three_yr_return * 100 if abs(three_yr_return) < 5 else three_yr_return
+        if ret_pct > 10:
+            score += 20
+            checks.append({'pass': True, 'text': f'Strong 3yr avg return ({ret_pct:.1f}%)'})
+        elif ret_pct > 5:
+            score += 10
+            checks.append({'pass': 'warn', 'text': f'Moderate 3yr avg return ({ret_pct:.1f}%)'})
+        elif ret_pct > 0:
+            score += 5
+            checks.append({'pass': 'warn', 'text': f'Low 3yr avg return ({ret_pct:.1f}%)'})
+        else:
+            checks.append({'pass': False, 'text': f'Negative 3yr return ({ret_pct:.1f}%)'})
+    else:
+        checks.append({'pass': 'warn', 'text': '3yr return data unavailable'})
+    
+    # 5-year return
+    if five_yr_return is not None:
+        ret_pct = five_yr_return * 100 if abs(five_yr_return) < 5 else five_yr_return
+        if ret_pct > 10:
+            score += 15
+            checks.append({'pass': True, 'text': f'Strong 5yr avg return ({ret_pct:.1f}%)'})
+        elif ret_pct > 5:
+            score += 10
+            checks.append({'pass': 'warn', 'text': f'Moderate 5yr avg return ({ret_pct:.1f}%)'})
+        else:
+            checks.append({'pass': False, 'text': f'Weak 5yr avg return ({ret_pct:.1f}%)'})
+    
+    # Beta (risk)
+    if beta is not None and beta > 0:
+        if beta < 1.0:
+            score += 10
+            checks.append({'pass': True, 'text': f'Low volatility (beta {beta:.2f})'})
+        elif beta < 1.3:
+            score += 5
+            checks.append({'pass': 'warn', 'text': f'Moderate volatility (beta {beta:.2f})'})
+        else:
+            checks.append({'pass': False, 'text': f'High volatility (beta {beta:.2f})'})
+    
+    # Total assets (liquidity)
+    if total_assets and total_assets > 1e9:
+        score += 10
+        checks.append({'pass': True, 'text': f'Large fund (${format_number(total_assets)})'})
+    elif total_assets and total_assets > 100e6:
+        score += 5
+        checks.append({'pass': 'warn', 'text': f'Mid-size fund (${format_number(total_assets)})'})
+    elif total_assets:
+        checks.append({'pass': False, 'text': f'Small fund (${format_number(total_assets)})'})
+
+    # Cap score at 100
+    score = min(score, 100)
+    
+    # Fair value for ETFs - use 52-week average or NAV
+    week_52_high = safe_get(info, 'fiftyTwoWeekHigh', price)
+    week_52_low = safe_get(info, 'fiftyTwoWeekLow', price)
+    fair_value = (week_52_high + week_52_low) / 2 if week_52_high and week_52_low else price
+    upside = ((fair_value - price) / price * 100) if price > 0 else 0
+    
+    return {
+        'symbol': symbol,
+        'is_etf': True,
+        'timestamp': datetime.now().isoformat(),
+        'quote': {
+            'name': safe_get(info, 'longName') or safe_get(info, 'shortName', symbol),
+            'price': price,
+            'change_percent': safe_get(info, 'regularMarketChangePercent', 0),
+            'market_cap': total_assets,
+            'week_52_high': week_52_high,
+            'week_52_low': week_52_low,
+            'industry': info.get('category', 'ETF'),
+            'sector': 'ETF',
+        },
+        'fundamentals': {
+            'pe_ratio': safe_get(info, 'trailingPE', None),
+            'expense_ratio': round(expense_ratio * 100, 3) if expense_ratio and expense_ratio < 1 else expense_ratio,
+            'dividend_yield': round(dividend_yield * 100, 2) if dividend_yield and dividend_yield < 1 else dividend_yield,
+            'ytd_return': round(ytd_return * 100, 1) if ytd_return and abs(ytd_return) < 5 else ytd_return,
+            'three_yr_return': round(three_yr_return * 100, 1) if three_yr_return and abs(three_yr_return) < 5 else three_yr_return,
+            'five_yr_return': round(five_yr_return * 100, 1) if five_yr_return and abs(five_yr_return) < 5 else five_yr_return,
+            'beta': round(beta, 2) if beta else None,
+            'total_assets': total_assets,
+        },
+        'fair_value': round(fair_value, 2),
+        'upside_percent': round(upside, 1),
+        'investment_score': score,
+        'checklist': checks,
+        'recommendation': get_recommendation(score, upside),
+    }
+
+def build_stock_result(symbol, info, price):
+    """Build analysis result for a regular stock."""
+    data = {
+        'price': price,
+        'roa': safe_get(info, 'returnOnAssets', None),
+        'roe': safe_get(info, 'returnOnEquity', None),
+        'cash': safe_get(info, 'totalCash', 0),
+        'debt': safe_get(info, 'totalDebt', 0),
+        'profit_margin': safe_get(info, 'profitMargins', None),
+        'ps_ratio': safe_get(info, 'priceToSalesTrailing12Months', 0),
+        'fcf': safe_get(info, 'freeCashflow', 0),
+        'eps': safe_get(info, 'trailingEps', 0),
+    }
+    
+    # Calculate fair value
+    eps = data['eps']
+    pe = safe_get(info, 'trailingPE', 0)
+    forward_pe = safe_get(info, 'forwardPE', 0)
+    target_price = safe_get(info, 'targetMeanPrice', 0)
+    
+    fair_values = []
+    
+    if target_price and target_price > 0:
+        fair_values.append(target_price)
+    
+    if forward_pe and forward_pe > 0 and eps and eps > 0:
+        growth_pe = min(forward_pe * 1.2, 30)
+        fair_values.append(eps * growth_pe)
+    
+    if pe and pe > 0 and pe < 25 and price > 0:
+        fair_values.append(price * 1.1)
+    elif pe and pe > 25 and price > 0:
+        fair_values.append(price * 0.95)
+    
+    if eps and eps > 0 and not fair_values:
+        sector = safe_get(info, 'sector', '')
+        if 'Technology' in str(sector):
+            fair_values.append(eps * 25)
+        elif 'Consumer' in str(sector):
+            fair_values.append(eps * 20)
+        else:
+            fair_values.append(eps * 18)
+    
+    fair_value = sum(fair_values) / len(fair_values) if fair_values else price
+    data['fair_value'] = fair_value
+    
+    score, checks = calculate_score(data)
+    upside = ((fair_value - price) / price * 100) if price > 0 else 0
+    
+    # Build fundamentals - use None for truly missing data so frontend shows N/A
+    roa_val = to_pct(data['roa']) if data['roa'] is not None else None
+    roe_val = to_pct(data['roe']) if data['roe'] is not None else None
+    pm_val = to_pct(data['profit_margin']) if data['profit_margin'] is not None else None
+    gm_raw = safe_get(info, 'grossMargins', None)
+    gm_val = to_pct(gm_raw) if gm_raw is not None else None
+    
+    return {
+        'symbol': symbol,
+        'is_etf': False,
+        'timestamp': datetime.now().isoformat(),
+        'quote': {
+            'name': safe_get(info, 'longName') or safe_get(info, 'shortName', symbol),
+            'price': price,
+            'change_percent': safe_get(info, 'regularMarketChangePercent', 0),
+            'market_cap': safe_get(info, 'marketCap', 0),
+            'week_52_high': safe_get(info, 'fiftyTwoWeekHigh', 0),
+            'week_52_low': safe_get(info, 'fiftyTwoWeekLow', 0),
+            'industry': safe_get(info, 'industry', 'N/A'),
+            'sector': safe_get(info, 'sector', 'N/A'),
+        },
+        'fundamentals': {
+            'pe_ratio': safe_get(info, 'trailingPE', None),
+            'ps_ratio': data['ps_ratio'] or None,
+            'pb_ratio': safe_get(info, 'priceToBook', None),
+            'eps': data['eps'] or None,
+            'roa': roa_val,
+            'roe': roe_val,
+            'profit_margin': pm_val,
+            'gross_margin': gm_val,
+            'cash': data['cash'] or None,
+            'debt': data['debt'] or None,
+            'fcf': data['fcf'] or None,
+            'dividend_yield': to_pct(safe_get(info, 'dividendYield', None)) if info.get('dividendYield') else None,
+        },
+        'fair_value': round(fair_value, 2),
+        'upside_percent': round(upside, 1),
+        'investment_score': score,
+        'checklist': checks,
+        'recommendation': get_recommendation(score, upside),
+    }
