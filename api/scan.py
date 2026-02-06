@@ -88,7 +88,8 @@ class handler(BaseHTTPRequestHandler):
         if symbols_param:
             tickers = [s.strip().upper() for s in symbols_param.split(',')][:15]
         else:
-            tickers = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA', 'META', 'TSLA', 'JPM', 'V', 'WMT']
+            # Financially strong companies: high ROA/ROE, strong cash, solid margins
+            tickers = ['AAPL', 'MSFT', 'COST', 'BRK-B', 'JNJ', 'UNH', 'V', 'MA', 'LLY', 'GOOGL', 'AVGO', 'HD']
         
         opportunities = []
         

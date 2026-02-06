@@ -153,8 +153,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
 
-        # Pick 3 stocks from 3 different random sectors
-        sectors = random.sample(list(STOCK_POOLS.keys()), min(3, len(STOCK_POOLS)))
+        # Pick 5 stocks from 5 different random sectors, keep top 3 by score
+        sectors = random.sample(list(STOCK_POOLS.keys()), min(5, len(STOCK_POOLS)))
         picks = []
         for sector in sectors:
             stock = random.choice(STOCK_POOLS[sector])
@@ -221,6 +221,10 @@ class handler(BaseHTTPRequestHandler):
 
             except Exception as e:
                 print(f"Error scanning {symbol}: {e}")
+
+        # Sort by score descending and keep top 3 — surface the strongest picks
+        results.sort(key=lambda x: x['score'], reverse=True)
+        results = results[:3]
 
         self.wfile.write(json.dumps({
             'picks': results,
