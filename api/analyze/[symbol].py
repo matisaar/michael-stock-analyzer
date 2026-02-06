@@ -1,7 +1,6 @@
 """Analyze stock using yfinance - auto-resolves company names to tickers"""
 from http.server import BaseHTTPRequestHandler
 import json
-import urllib.request
 import urllib.parse
 from datetime import datetime
 import yfinance as yf
@@ -21,24 +20,18 @@ def format_number(n):
     return f'{n:.0f}'
 
 def resolve_symbol(query):
-    """Search Yahoo Finance to resolve a company name or partial ticker to a real ticker symbol.
+    """Search Yahoo Finance via yfinance to resolve a company name to a ticker.
     Returns (resolved_symbol, company_name) or (None, None) if not found."""
     try:
-        url = f"https://query1.finance.yahoo.com/v1/finance/search?q={urllib.parse.quote(query)}&quotesCount=6&newsCount=0&enableFuzzyQuery=true&quotesQueryId=tss_match_phrase_query"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-        req = urllib.request.Request(url, headers=headers)
-        with urllib.request.urlopen(req, timeout=8) as response:
-            data = json.loads(response.read().decode())
-            quotes = data.get('quotes', [])
-            for quote in quotes:
-                qt = quote.get('quoteType', '')
-                if qt in ('EQUITY', 'ETF'):
-                    sym = quote.get('symbol', '')
-                    name = quote.get('shortname') or quote.get('longname') or sym
-                    if sym:
-                        return sym, name
+        search = yf.Search(query, max_results=5, news_count=0)
+        quotes = search.quotes if hasattr(search, 'quotes') else []
+        for q in quotes:
+            qt = q.get('quoteType', '')
+            if qt in ('EQUITY', 'ETF'):
+                sym = q.get('symbol', '')
+                name = q.get('shortname') or q.get('longname') or sym
+                if sym:
+                    return sym, name
     except Exception as e:
         print(f"resolve_symbol error: {e}")
     return None, None
