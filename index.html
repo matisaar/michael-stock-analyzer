@@ -195,6 +195,40 @@
             font-weight: 600;
         }
         .search-wrapper { position: relative; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        
+        /* Discover Section */
+        .discover-section { margin-bottom: 40px; }
+        .discover-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .discover-header .section-title { margin-bottom: 0; }
+        .btn-discover { 
+            padding: 10px 20px; background: linear-gradient(135deg, #6c5ce7, #a855f7); 
+            color: #fff; border: none; border-radius: 10px; font-size: 14px; 
+            font-weight: 600; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-discover:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(168,85,247,0.3); }
+        .btn-discover:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .discover-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .discover-card {
+            background: linear-gradient(145deg, #151515, #111);
+            border: 1px solid #222; border-radius: 20px; padding: 24px;
+            cursor: pointer; transition: all 0.3s; position: relative; overflow: hidden;
+        }
+        .discover-card::before {
+            content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+            background: linear-gradient(90deg, #6c5ce7, #a855f7);
+        }
+        .discover-card:hover { border-color: #a855f7; transform: translateY(-4px); box-shadow: 0 12px 30px rgba(0,0,0,0.4); }
+        .discover-card .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+        .discover-card .card-top h3 { font-size: 18px; max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .discover-card .sector-tag { font-size: 11px; color: #a855f7; background: rgba(168,85,247,0.15); padding: 4px 10px; border-radius: 6px; font-weight: 600; }
+        .discover-card .price-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px; }
+        .discover-card .price-row .price { font-size: 28px; font-weight: 700; }
+        .discover-card .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .discover-card .mini-stat { font-size: 12px; color: #888; display: flex; justify-content: space-between; padding: 4px 0; border-top: 1px solid #1a1a1a; }
+        .discover-card .mini-stat .val { font-weight: 600; color: #ccc; }
+        .discover-card .mini-stat .val.good { color: #00d374; }
+        .discover-card .mini-stat .val.bad { color: #ff5252; }
+        .discover-loading { text-align: center; padding: 40px; color: #666; }
     </style>
 </head>
 <body>
@@ -215,6 +249,16 @@
         <div id="loading" class="loading" style="display:none;">
             <div class="spinner"></div>
             <p>Analyzing stocks...</p>
+        </div>
+        
+        <div id="discoverSection" class="discover-section">
+            <div class="discover-header">
+                <div class="section-title">🎲 Discover Random Stocks</div>
+                <button class="btn-discover" id="discoverBtn" onclick="loadDiscover()">🔄 Shuffle New Picks</button>
+            </div>
+            <div id="discoverGrid" class="discover-grid">
+                <div class="discover-loading">Click "Shuffle New Picks" to discover stocks!</div>
+            </div>
         </div>
         
         <div id="grid">
@@ -367,7 +411,71 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Load default stocks
     loadDefaultStocks();
+    // Auto-load first set of discover picks
+    loadDiscover();
 });
+
+async function loadDiscover() {
+    const btn = document.getElementById('discoverBtn');
+    const grid = document.getElementById('discoverGrid');
+    
+    btn.disabled = true;
+    btn.textContent = '⏳ Finding stocks...';
+    grid.innerHTML = '<div class="discover-loading"><div class="spinner" style="width:36px;height:36px;border:3px solid #222;border-top-color:#a855f7;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px"></div>Discovering random stocks across sectors...</div>';
+    
+    try {
+        const resp = await fetch(API_BASE + '/api/discover');
+        const data = await resp.json();
+        
+        if (data.picks && data.picks.length > 0) {
+            displayDiscoverCards(data.picks);
+        } else {
+            grid.innerHTML = '<div class="discover-loading">No picks found. Try again!</div>';
+        }
+    } catch (e) {
+        grid.innerHTML = '<div class="discover-loading">Error loading picks. Try again!</div>';
+    }
+    
+    btn.disabled = false;
+    btn.textContent = '🔄 Shuffle New Picks';
+}
+
+function displayDiscoverCards(picks) {
+    const grid = document.getElementById('discoverGrid');
+    grid.innerHTML = picks.map(function(s) {
+        const scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
+        const upsideClass = (s.upside || 0) >= 0 ? 'up' : 'down';
+        const arrow = (s.upside || 0) >= 0 ? '↑' : '↓';
+        
+        function mcap(n) {
+            if (!n) return 'N/A';
+            if (n >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T';
+            if (n >= 1e9) return '$' + (n/1e9).toFixed(0) + 'B';
+            if (n >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M';
+            return '$' + n;
+        }
+        
+        return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
+            '<div class="card-top">' +
+                '<div><h3>' + (s.name || s.symbol) + '</h3><span class="ticker" style="color:#888">' + s.symbol + '</span></div>' +
+                '<span class="sector-tag">' + (s.sector || 'Stock') + '</span>' +
+            '</div>' +
+            '<div class="price-row">' +
+                '<span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
+                '<div class="badges">' +
+                    '<span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span>' +
+                    '<span class="badge ' + scoreClass + '">Score: ' + s.score + '</span>' +
+                '</div>' +
+            '</div>' +
+            '<div class="mini-stats">' +
+                '<div class="mini-stat"><span>P/E</span><span class="val">' + (s.pe_ratio != null ? s.pe_ratio.toFixed(1) + 'x' : 'N/A') + '</span></div>' +
+                '<div class="mini-stat"><span>Mkt Cap</span><span class="val">' + mcap(s.market_cap) + '</span></div>' +
+                '<div class="mini-stat"><span>ROA</span><span class="val ' + (s.roa > 10 ? 'good' : s.roa != null && s.roa < 0 ? 'bad' : '') + '">' + (s.roa != null ? s.roa.toFixed(1) + '%' : 'N/A') + '</span></div>' +
+                '<div class="mini-stat"><span>ROE</span><span class="val ' + (s.roe > 10 ? 'good' : s.roe != null && s.roe < 0 ? 'bad' : '') + '">' + (s.roe != null ? s.roe.toFixed(1) + '%' : 'N/A') + '</span></div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
 
 // Load stocks on page load
 async function loadDefaultStocks() {
