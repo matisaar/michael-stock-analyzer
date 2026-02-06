@@ -63,7 +63,7 @@
         .stock-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
         .stock-card { 
             background: var(--surface); border: 1px solid var(--border); border-radius: 12px; 
-            padding: 16px; padding-right: 48px; cursor: pointer; transition: all 0.15s;
+            padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s;
             -webkit-user-select: none; user-select: none;
         }
         .stock-card:active { transform: scale(0.98); background: var(--surface-alt); }
@@ -193,7 +193,7 @@
         .save-btn { background: none; border: 1px solid var(--border); border-radius: 10px; width: 44px; height: 44px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; flex-shrink: 0; }
         .save-btn:active { transform: scale(0.9); }
         .save-btn.saved { border-color: var(--red); background: var(--red-muted); }
-        .card-save-btn { position: absolute; top: 8px; right: 8px; background: rgba(10,10,10,0.7); border: none; font-size: 18px; cursor: pointer; z-index: 50; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; opacity: 0.6; transition: all 0.15s; -webkit-tap-highlight-color: rgba(239,68,68,0.2); }
+        .card-save-btn { position: absolute; top: 4px; right: 4px; background: none; border: none; font-size: 14px; cursor: pointer; z-index: 50; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border-radius: 50%; opacity: 0.5; transition: all 0.15s; -webkit-tap-highlight-color: rgba(239,68,68,0.2); }
         .card-save-btn:hover { opacity: 1; }
         .card-save-btn:active { transform: scale(0.85); opacity: 1; }
         .card-save-btn.saved { opacity: 1; background: var(--red-muted); }
@@ -218,7 +218,7 @@
 
         /* Watchlist */
         .watchlist-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .watchlist-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 48px; cursor: pointer; transition: all 0.15s; }
+        .watchlist-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s; }
         .watchlist-card:active { transform: scale(0.98); }
         .watchlist-card .wl-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
         .watchlist-card .wl-saved-info { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
@@ -255,11 +255,12 @@
         .btn-discover:active { transform: scale(0.97); }
         .btn-discover:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
         .discover-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
-        .discover-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 48px; cursor: pointer; transition: all 0.15s; -webkit-user-select: none; user-select: none; }
+        .discover-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; padding-right: 44px; cursor: pointer; transition: all 0.15s; -webkit-user-select: none; user-select: none; }
         .discover-card:active { transform: scale(0.98); background: var(--surface-alt); }
-        .discover-card .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
-        .discover-card .card-top h3 { font-size: 15px; font-weight: 650; max-width: 60%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .discover-card .sector-tag { font-size: 10px; color: var(--text-secondary); background: #1a1a1a; padding: 3px 8px; border-radius: 6px; font-weight: 600; white-space: nowrap; }
+        .discover-card .card-top { margin-bottom: 10px; }
+        .discover-card .card-top h3 { font-size: 15px; font-weight: 650; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+        .discover-card .card-top .ticker-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .discover-card .sector-tag { font-size: 10px; color: var(--text-secondary); background: #1a1a1a; padding: 2px 7px; border-radius: 5px; font-weight: 600; white-space: nowrap; }
         .discover-card .price-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; gap: 6px; }
         .discover-card .price-row .price { font-size: 22px; font-weight: 700; }
         .discover-card .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
@@ -786,8 +787,8 @@ function displayDiscoverCards(picks) {
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
         return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
             '<button class="' + heartClass + '" onclick="event.stopPropagation()" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button>' +
-            '<div class="card-top"><div><h3>' + (s.name || s.symbol) + '</h3><span class="ticker" style="color:#888">' + s.symbol + '</span></div>' +
-            '<span class="sector-tag">' + (s.sector || 'Stock') + '</span></div>' +
+            '<div class="card-top"><h3>' + (s.name || s.symbol) + '</h3>' +
+            '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.sector || 'Stock') + '</span></div></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
             '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div></div>' +
             '<div class="mini-stats">' +
