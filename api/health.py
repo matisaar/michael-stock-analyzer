@@ -1,7 +1,6 @@
-"""Health check endpoint for Vercel serverless function"""
+"""Health check endpoint"""
 from http.server import BaseHTTPRequestHandler
 import json
-import os
 from datetime import datetime
 
 class handler(BaseHTTPRequestHandler):
@@ -14,9 +13,8 @@ class handler(BaseHTTPRequestHandler):
         response = {
             'status': 'ok',
             'timestamp': datetime.now().isoformat(),
-            'tradier_configured': bool(os.environ.get('TRADIER_API_KEY')),
-            'fmp_configured': True  # Hardcoded key
+            'method': 'web_scraping',
+            'source': 'Yahoo Finance'
         }
         
         self.wfile.write(json.dumps(response).encode())
-        return
