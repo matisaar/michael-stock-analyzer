@@ -1,4 +1,4 @@
-"""Health check endpoint"""
+"""Health check"""
 from http.server import BaseHTTPRequestHandler
 import json
 from datetime import datetime
@@ -10,11 +10,8 @@ class handler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         
-        response = {
+        self.wfile.write(json.dumps({
             'status': 'ok',
             'timestamp': datetime.now().isoformat(),
-            'method': 'web_scraping',
-            'source': 'Yahoo Finance'
-        }
-        
-        self.wfile.write(json.dumps(response).encode())
+            'source': 'yfinance'
+        }).encode())
