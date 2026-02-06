@@ -232,81 +232,27 @@
 <script>
 const API_BASE = window.location.origin;
 
-// Common company name to ticker mapping
-const TICKER_MAP = {
-    'apple': 'AAPL', 'microsoft': 'MSFT', 'google': 'GOOGL', 'alphabet': 'GOOGL',
-    'amazon': 'AMZN', 'tesla': 'TSLA', 'meta': 'META', 'facebook': 'META',
-    'nvidia': 'NVDA', 'netflix': 'NFLX', 'disney': 'DIS', 'walmart': 'WMT',
-    'jpmorgan': 'JPM', 'jp morgan': 'JPM', 'chase': 'JPM', 'visa': 'V',
-    'mastercard': 'MA', 'paypal': 'PYPL', 'adobe': 'ADBE', 'salesforce': 'CRM',
-    'intel': 'INTC', 'amd': 'AMD', 'qualcomm': 'QCOM', 'cisco': 'CSCO',
-    'oracle': 'ORCL', 'ibm': 'IBM', 'boeing': 'BA', 'coca cola': 'KO',
-    'cocacola': 'KO', 'coke': 'KO', 'pepsi': 'PEP', 'pepsico': 'PEP',
-    'mcdonalds': 'MCD', "mcdonald's": 'MCD', 'starbucks': 'SBUX',
-    'nike': 'NKE', 'costco': 'COST', 'home depot': 'HD', 'homedepot': 'HD',
-    'target': 'TGT', 'uber': 'UBER', 'lyft': 'LYFT', 'airbnb': 'ABNB',
-    'spotify': 'SPOT', 'zoom': 'ZM', 'snowflake': 'SNOW', 'palantir': 'PLTR',
-    'coinbase': 'COIN', 'robinhood': 'HOOD', 'gamestop': 'GME', 'amc': 'AMC',
-    'ford': 'F', 'gm': 'GM', 'general motors': 'GM', 'rivian': 'RIVN',
-    'lucid': 'LCID', 'nio': 'NIO', 'berkshire': 'BRK-B', 'johnson': 'JNJ',
-    'johnson & johnson': 'JNJ', 'pfizer': 'PFE', 'moderna': 'MRNA',
-    'unitedhealth': 'UNH', 'exxon': 'XOM', 'chevron': 'CVX', 'shell': 'SHEL',
-    'at&t': 'T', 'att': 'T', 'verizon': 'VZ', 't-mobile': 'TMUS',
-    'comcast': 'CMCSA', 'bank of america': 'BAC', 'bofa': 'BAC',
-    'wells fargo': 'WFC', 'goldman': 'GS', 'goldman sachs': 'GS',
-    'morgan stanley': 'MS', 'blackrock': 'BLK', 'schwab': 'SCHW',
-    'american express': 'AXP', 'amex': 'AXP', 'square': 'SQ', 'block': 'SQ',
-    'shopify': 'SHOP', 'etsy': 'ETSY', 'ebay': 'EBAY', 'roku': 'ROKU',
-    'draftkings': 'DKNG', 'penn': 'PENN', 'roblox': 'RBLX', 'unity': 'U',
-    'crowdstrike': 'CRWD', 'datadog': 'DDOG', 'twilio': 'TWLO',
-    'servicenow': 'NOW', 'workday': 'WDAY', 'splunk': 'SPLK',
-    'docusign': 'DOCU', 'dropbox': 'DBX', 'atlassian': 'TEAM',
-    'twitter': 'TWTR', 'snap': 'SNAP', 'snapchat': 'SNAP', 'pinterest': 'PINS',
-    'match': 'MTCH', 'tinder': 'MTCH', 'bumble': 'BMBL',
-    'doordash': 'DASH', 'instacart': 'CART', 'grubhub': 'GRUB',
-    'peloton': 'PTON', 'lululemon': 'LULU', 'under armour': 'UAA',
-    'crocs': 'CROX', 'gap': 'GPS', 'ralph lauren': 'RL',
-    'chipotle': 'CMG', 'dominos': 'DPZ', "domino's": 'DPZ', 'yum': 'YUM',
-    'procter': 'PG', 'procter & gamble': 'PG', 'colgate': 'CL',
-    'clorox': 'CLX', '3m': 'MMM', 'caterpillar': 'CAT', 'deere': 'DE',
-    'john deere': 'DE', 'honeywell': 'HON', 'ge': 'GE', 'general electric': 'GE',
-    'lockheed': 'LMT', 'raytheon': 'RTX', 'northrop': 'NOC',
-};
-
-function resolveSymbol(input) {
-    const cleaned = input.toLowerCase().trim();
-    // Check if it's already a ticker (all caps, 1-5 chars)
-    if (/^[A-Za-z]{1,5}(-[A-Za-z])?$/.test(input.trim())) {
-        return input.trim().toUpperCase();
-    }
-    // Look up in our map
-    if (TICKER_MAP[cleaned]) {
-        return TICKER_MAP[cleaned];
-    }
-    // Try partial match
-    for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-        if (name.includes(cleaned) || cleaned.includes(name)) {
-            return ticker;
-        }
-    }
-    // Assume it's a ticker
-    return input.trim().toUpperCase();
-}
-
-// Build reverse map for display names
-const DISPLAY_NAMES = {};
-for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-    if (!DISPLAY_NAMES[ticker]) {
-        // Capitalize first letter of each word
-        DISPLAY_NAMES[ticker] = name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    }
-}
-
 let selectedIndex = -1;
 let currentSuggestions = [];
+let searchTimeout = null;
 
-function showSuggestions(query) {
+// Live search using Yahoo Finance API
+async function searchStocks(query) {
+    if (!query || query.length < 1) return [];
+    
+    try {
+        const resp = await fetch(API_BASE + '/api/search/' + encodeURIComponent(query));
+        const data = await resp.json();
+        return data.results || [];
+    } catch (e) {
+        console.error('Search error:', e);
+        return [];
+    }
+}
+
+async function showSuggestions(query) {
     const suggestionsEl = document.getElementById('suggestions');
+    
     if (!query || query.length < 1) {
         suggestionsEl.style.display = 'none';
         currentSuggestions = [];
@@ -314,58 +260,44 @@ function showSuggestions(query) {
         return;
     }
     
-    const q = query.toLowerCase();
-    const matches = [];
-    const seen = new Set();
+    // Show loading state
+    suggestionsEl.innerHTML = '<div class="suggestion-item"><span class="company" style="color:#666">🔍 Searching...</span></div>';
+    suggestionsEl.style.display = 'block';
     
-    // First: exact matches
-    for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-        if (name === q && !seen.has(ticker)) {
-            matches.push({ name, ticker });
-            seen.add(ticker);
-        }
-    }
+    // Fetch results from API
+    const results = await searchStocks(query);
     
-    // Second: starts with query
-    for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-        if (name.startsWith(q) && !seen.has(ticker)) {
-            matches.push({ name, ticker });
-            seen.add(ticker);
-        }
-    }
-    
-    // Third: ticker starts with query
-    for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-        if (ticker.toLowerCase().startsWith(q) && !seen.has(ticker)) {
-            matches.push({ name, ticker });
-            seen.add(ticker);
-        }
-    }
-    
-    // Fourth: contains query
-    for (const [name, ticker] of Object.entries(TICKER_MAP)) {
-        if ((name.includes(q) || ticker.toLowerCase().includes(q)) && !seen.has(ticker)) {
-            matches.push({ name, ticker });
-            seen.add(ticker);
-        }
-    }
-    
-    currentSuggestions = matches.slice(0, 8);
+    currentSuggestions = results.map(r => ({
+        name: r.name,
+        ticker: r.symbol,
+        exchange: r.exchange,
+        type: r.type
+    }));
     selectedIndex = -1;
     
     if (currentSuggestions.length === 0) {
-        suggestionsEl.style.display = 'none';
+        // No results - but user can still try their input as a ticker
+        suggestionsEl.innerHTML = '<div class="suggestion-item"><span class="company" style="color:#888">No results. Press Enter to search "' + query.toUpperCase() + '"</span></div>';
         return;
     }
     
     suggestionsEl.innerHTML = currentSuggestions.map((m, i) => 
         '<div class="suggestion-item" data-index="' + i + '" onclick="selectSuggestion(' + i + ')">' +
-            '<span class="company">' + m.name.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') + '</span>' +
+            '<div style="display:flex;flex-direction:column;gap:2px">' +
+                '<span class="company">' + escapeHtml(m.name) + '</span>' +
+                '<span style="font-size:11px;color:#555">' + (m.exchange || '') + ' • ' + (m.type || 'Stock') + '</span>' +
+            '</div>' +
             '<span class="ticker">' + m.ticker + '</span>' +
         '</div>'
     ).join('');
     
     suggestionsEl.style.display = 'block';
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 function selectSuggestion(index) {
@@ -391,7 +323,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const input = document.getElementById('searchInput');
     
     input.addEventListener('input', function() {
-        showSuggestions(this.value);
+        // Debounce the search
+        clearTimeout(searchTimeout);
+        const query = this.value;
+        searchTimeout = setTimeout(() => showSuggestions(query), 300);
     });
     
     input.addEventListener('keydown', function(e) {
@@ -500,9 +435,10 @@ async function analyze(sym) {
         showError('Please enter a stock ticker or company name');
         return;
     }
-    sym = resolveSymbol(rawInput);
-    // Update the input field to show the resolved ticker
+    // Use the input directly as a ticker (user selects from suggestions or types ticker)
+    sym = rawInput.trim().toUpperCase();
     document.getElementById('searchInput').value = sym;
+    document.getElementById('suggestions').style.display = 'none';
     
     document.getElementById('loading').style.display = 'block';
     document.getElementById('error').style.display = 'none';
