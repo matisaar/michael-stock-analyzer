@@ -95,7 +95,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📈 Michael's Stock Analyzer <span class="backend-badge">Python Backend</span></h1>
+        <h1>📈 Michael's Stock Analyzer <span class="backend-badge">Vercel Serverless</span></h1>
         <p class="subtitle">Investment analysis with Michael's criteria (ROA/ROE >10%, Cash vs Debt, Fair Value)</p>
         
         <div class="api-box">
@@ -110,9 +110,10 @@
             </div>
             <div class="api-row">
                 <button onclick="saveKeys()">Save Keys</button>
-                <span class="api-status" id="apiStatus">Checking backend...</span>
+                <span class="api-status" id="apiStatus">Checking connection...</span>
             </div>
             <p style="font-size: 12px; color: #666; margin-top: 12px;">
+                💡 <strong>For Vercel:</strong> Add API keys as Environment Variables (TRADIER_API_KEY, FMP_API_KEY) in your Vercel project settings.<br>
                 Get free keys: <a href="https://developer.tradier.com/" target="_blank">Tradier</a> (sandbox for quotes) | 
                 <a href="https://site.financialmodelingprep.com/developer/docs" target="_blank">FMP</a> (250 calls/day, fundamentals)
             </p>
@@ -152,18 +153,20 @@ async function checkBackend() {
         const data = await resp.json();
         
         if (data.status === 'ok') {
-            let status = '✅ Backend connected';
+            let status = '✅ Connected';
             if (data.tradier_configured) status += ' | Tradier ✓';
             if (data.fmp_configured) status += ' | FMP ✓';
             if (!data.tradier_configured && !data.fmp_configured) {
-                status += ' | ⚠️ No API keys configured';
+                status += ' | ⚠️ Add API keys in Vercel Environment Variables';
             }
             statusEl.textContent = status;
             statusEl.className = 'api-status connected';
         }
     } catch (e) {
-        statusEl.textContent = '❌ Backend not running. Start with: python app.py';
+        statusEl.textContent = '⏳ Connecting to serverless backend...';
         statusEl.className = 'api-status';
+        // Retry after a moment (serverless cold start)
+        setTimeout(checkBackend, 2000);
     }
 }
 
@@ -225,7 +228,9 @@ async function loadDefaultStocks() {
             grid.innerHTML = '<p style="color:#666;grid-column:1/-1;text-align:center;">Configure API keys to load stock data</p>';
         }
     } catch (e) {
-        grid.innerHTML = '<p style="color:#ff5252;grid-column:1/-1;text-align:center;">Backend not running. Start with: python app.py</p>';
+        grid.innerHTML = '<p style="color:#888;grid-column:1/-1;text-align:center;">⏳ Loading stocks... (serverless cold start may take a moment)</p>';
+        // Retry after cold start
+        setTimeout(loadDefaultStocks, 3000);
     }
 }
 
@@ -262,7 +267,7 @@ async function scanOpportunities() {
         if (data.opportunities) {
             displayStockGrid(data.opportunities);
         }
-    } catch (e) {
+    } catch (e) {Error connecting to server. Please try again.
         document.getElementById('loading').style.display = 'none';
         showError('Backend not running. Start with: python app.py');
     }
@@ -296,7 +301,7 @@ async function analyze(sym) {
         displayAnalysis(data);
     } catch (e) {
         document.getElementById('loading').style.display = 'none';
-        showError('Backend not running. Start with: python app.py');
+        showError('Error analyzing stock. Please try again.');
         document.getElementById('grid').style.display = 'block';
     }
 }
