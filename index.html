@@ -6,9 +6,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a0a0a">
-    <title>Michael's Stock Analyzer</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <title>Bosdet Labs — Smart Investment Research</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -423,8 +422,8 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📈 <span>Michael's Stock Analyzer</span></h1>
-            <p>Smart investment analysis • ROA/ROE &gt;10% • Cash vs Debt • Fair Value</p>
+            <h1>🧪 <span>Bosdet Labs</span></h1>
+            <p>Smart Investment Research • Rule #1 Analysis • Fair Value • Algorithm Transparency</p>
         </div>
         
         <div class="search-box" style="position: relative;">
@@ -484,37 +483,35 @@
         <div id="detail" class="detail-view"></div>
         
         <footer>
-            Built with ❤️ for Michael
+            Bosdet Labs © 2026 • Built with 🧪 & ❤️
         </footer>
     </div>
 
 <script>
 const API_BASE = window.location.origin;
-const SUPABASE_URL = 'https://uhmoslyaavuswzlqeyml.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_WZHHhv_faBOJltSJG_IK_w_VMgGqFGO';
 
-// Watchlist state (in-memory cache)
+// Watchlist state - localStorage is the source of truth
 let watchlistMap = {}; // symbol -> row data
-let currentStockData = null; // currently displayed stock
+let currentStockData = null;
 
-// ========== SUPABASE / WATCHLIST ==========
-async function loadWatchlist() {
+// ========== WATCHLIST (localStorage) ==========
+function loadWatchlist() {
     try {
-        const resp = await fetch(API_BASE + '/api/watchlist');
-        const data = await resp.json();
-        watchlistMap = {};
-        (data.watchlist || []).forEach(function(item) {
-            watchlistMap[item.symbol] = item;
-        });
-        updateWatchlistBadge();
+        var saved = localStorage.getItem('bosdet_watchlist');
+        watchlistMap = saved ? JSON.parse(saved) : {};
     } catch (e) {
-        console.error('Watchlist load error:', e);
+        watchlistMap = {};
     }
+    updateWatchlistBadge();
+}
+
+function persistWatchlist() {
+    try { localStorage.setItem('bosdet_watchlist', JSON.stringify(watchlistMap)); } catch(e) {}
 }
 
 function updateWatchlistBadge() {
-    const count = Object.keys(watchlistMap).length;
-    const badge = document.getElementById('wlCount');
+    var count = Object.keys(watchlistMap).length;
+    var badge = document.getElementById('wlCount');
     if (count > 0) {
         badge.textContent = count;
         badge.style.display = 'inline';
@@ -527,38 +524,34 @@ function isInWatchlist(symbol) {
     return !!watchlistMap[symbol];
 }
 
-async function toggleWatchlist(symbol, name, sector, industry, score, price) {
+function toggleWatchlist(symbol, name, sector, industry, score, price) {
     if (isInWatchlist(symbol)) {
-        // Remove
-        try {
-            await fetch(API_BASE + '/api/watchlist?symbol=' + symbol, { method: 'DELETE' });
-            delete watchlistMap[symbol];
-        } catch (e) { console.error(e); }
+        delete watchlistMap[symbol];
     } else {
-        // Add
-        try {
-            const resp = await fetch(API_BASE + '/api/watchlist', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol, name, sector, industry, score, price })
-            });
-            const data = await resp.json();
-            if (data.success && data.item) {
-                watchlistMap[symbol] = data.item;
-            } else if (data.error === 'Already in watchlist') {
-                watchlistMap[symbol] = { symbol, name };
-            }
-        } catch (e) { console.error(e); }
+        watchlistMap[symbol] = {
+            symbol: symbol,
+            name: name || symbol,
+            sector: sector || '',
+            industry: industry || '',
+            score: score || 0,
+            price_at_save: price || 0,
+            added_at: new Date().toISOString()
+        };
     }
+    persistWatchlist();
     updateWatchlistBadge();
     updateAllHeartButtons(symbol);
 }
 
 function updateAllHeartButtons(symbol) {
-    const saved = isInWatchlist(symbol);
+    var saved = isInWatchlist(symbol);
     document.querySelectorAll('[data-heart="' + symbol + '"]').forEach(function(btn) {
         btn.textContent = saved ? '❤️' : '🤍';
-        btn.className = saved ? btn.className.replace('saved', '') + ' saved' : btn.className.replace(' saved', '');
+        if (saved) {
+            if (btn.className.indexOf('saved') === -1) btn.className += ' saved';
+        } else {
+            btn.className = btn.className.replace(/ ?saved/g, '');
+        }
     });
 }
 
@@ -648,7 +641,12 @@ async function loadRecommendations() {
     summary.innerHTML = '<div style="color:#666;font-size:13px;text-align:center"><div class="spinner" style="width:24px;height:24px;border:2px solid #222;border-top-color:#00d374;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>Analyzing your ' + Object.keys(watchlistMap).length + ' saved stocks and finding matches...</div>';
     
     try {
-        const resp = await fetch(API_BASE + '/api/recommend');
+        var items = Object.values(watchlistMap);
+        const resp = await fetch(API_BASE + '/api/recommend', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ watchlist: items })
+        });
         const data = await resp.json();
         
         if (data.profile) {

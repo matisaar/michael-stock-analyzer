@@ -211,13 +211,46 @@ def generate_reason(profile, candidate_sector, score, upside, match_type):
 
 
 class handler(BaseHTTPRequestHandler):
-    def do_GET(self):
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.end_headers()
+
+    def do_POST(self):
+        """Accept watchlist from frontend (localStorage) and return recommendations."""
         self.send_response(200)
         self.send_header('Content-type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
 
-        # 1. Fetch watchlist
+        # Parse watchlist from request body
+        try:
+            length = int(self.headers.get('Content-Length', 0))
+            body = json.loads(self.rfile.read(length)) if length > 0 else {}
+        except Exception:
+            body = {}
+
+        watchlist = body.get('watchlist', [])
+
+        if not watchlist:
+            self.wfile.write(json.dumps({
+                'recommendations': [],
+                'message': 'Save some stocks first! We\u2019ll analyze your preferences and find similar opportunities.',
+                'profile': None,
+            }).encode())
+            return
+
+        self._generate_recommendations(watchlist)
+
+    def do_GET(self):
+        """Fallback: try to read from Supabase (if table exists)."""
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+
         watchlist = get_watchlist()
 
         if not watchlist:
@@ -228,6 +261,9 @@ class handler(BaseHTTPRequestHandler):
             }).encode())
             return
 
+        self._generate_recommendations(watchlist)
+
+    def _generate_recommendations(self, watchlist):
         # 2. Build profile
         profile = build_profile(watchlist)
 
