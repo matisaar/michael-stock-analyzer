@@ -8,7 +8,7 @@ from datetime import datetime
 TRADIER_API_KEY = os.environ.get('TRADIER_API_KEY', '')
 TRADIER_BASE_URL = 'https://sandbox.tradier.com/v1'
 
-FMP_API_KEY = os.environ.get('FMP_API_KEY', '')
+FMP_API_KEY = os.environ.get('FMP_API_KEY', 'IQX03P8pFuuM1hmPtDZSRax9F5OkDKGM')
 FMP_BASE_URL = 'https://financialmodelingprep.com/api/v3'
 
 def tradier_request(endpoint, params=None):

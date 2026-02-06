@@ -15,7 +15,7 @@ class handler(BaseHTTPRequestHandler):
             'status': 'ok',
             'timestamp': datetime.now().isoformat(),
             'tradier_configured': bool(os.environ.get('TRADIER_API_KEY')),
-            'fmp_configured': bool(os.environ.get('FMP_API_KEY'))
+            'fmp_configured': True  # Hardcoded key
         }
         
         self.wfile.write(json.dumps(response).encode())
