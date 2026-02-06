@@ -54,6 +54,18 @@ def safe_get(info, key, default=0):
         return default
     return val
 
+def to_pct(val):
+    """Convert yfinance decimal ratio to percentage.
+    yfinance ALWAYS returns ratios as decimals: 0.24 = 24%, 1.5 = 150%.
+    Values > 10 are likely already percentages from a different source."""
+    if val is None:
+        return 0
+    val = float(val)
+    if abs(val) > 10:
+        # Already looks like a percentage (e.g. 24.4 not 0.244)
+        return val
+    return val * 100
+
 def calculate_score(data):
     """Calculate investment score"""
     score = 0
@@ -69,8 +81,8 @@ def calculate_score(data):
     ps_ratio = data.get('ps_ratio', 0) or 0
     fcf = data.get('fcf', 0) or 0
     
-    # ROA check (multiply by 100 if decimal)
-    roa_pct = roa * 100 if abs(roa) < 1 else roa
+    # ROA check
+    roa_pct = to_pct(roa)
     if roa_pct > 10:
         score += 15
         checks.append({'pass': True, 'text': f'ROA ({roa_pct:.1f}%) > 10%'})
@@ -81,7 +93,7 @@ def calculate_score(data):
         checks.append({'pass': False, 'text': f'ROA ({roa_pct:.1f}%) < 10%'})
     
     # ROE check
-    roe_pct = roe * 100 if abs(roe) < 1 else roe
+    roe_pct = to_pct(roe)
     if roe_pct > 10:
         score += 15
         checks.append({'pass': True, 'text': f'ROE ({roe_pct:.1f}%) > 10%'})
@@ -116,7 +128,7 @@ def calculate_score(data):
             checks.append({'pass': False, 'text': f'Overvalued by {abs(upside):.0f}%'})
     
     # Profit margin
-    pm_pct = profit_margin * 100 if abs(profit_margin) < 1 else profit_margin
+    pm_pct = to_pct(profit_margin)
     if pm_pct > 15:
         score += 10
         checks.append({'pass': True, 'text': f'Strong margin ({pm_pct:.1f}%)'})
@@ -265,10 +277,10 @@ class handler(BaseHTTPRequestHandler):
                     'ps_ratio': data['ps_ratio'],
                     'pb_ratio': safe_get(info, 'priceToBook', 0),
                     'eps': data['eps'],
-                    'roa': (data['roa'] * 100) if data['roa'] and abs(data['roa']) < 1 else data['roa'],
-                    'roe': (data['roe'] * 100) if data['roe'] and abs(data['roe']) < 1 else data['roe'],
-                    'profit_margin': (data['profit_margin'] * 100) if data['profit_margin'] and abs(data['profit_margin']) < 1 else data['profit_margin'],
-                    'gross_margin': safe_get(info, 'grossMargins', 0) * 100 if safe_get(info, 'grossMargins', 0) else 0,
+                    'roa': to_pct(data['roa']),
+                    'roe': to_pct(data['roe']),
+                    'profit_margin': to_pct(data['profit_margin']),
+                    'gross_margin': to_pct(safe_get(info, 'grossMargins', 0)),
                     'cash': data['cash'],
                     'debt': data['debt'],
                     'fcf': data['fcf'],
