@@ -163,17 +163,43 @@ class handler(BaseHTTPRequestHandler):
                 'eps': safe_get(info, 'trailingEps', 0),
             }
             
-            # Calculate fair value
+            # Calculate fair value - smarter approach
             eps = data['eps']
             pe = safe_get(info, 'trailingPE', 0)
+            forward_pe = safe_get(info, 'forwardPE', 0)
+            target_price = safe_get(info, 'targetMeanPrice', 0)  # Analyst target
             
             fair_values = []
-            if eps and eps > 0:
-                fair_values.append(eps * 15)  # PE of 15
-            if pe and pe > 0 and pe < 15 and price > 0:
-                fair_values.append(price * (15 / pe))
             
-            fair_value = sum(fair_values) / len(fair_values) if fair_values else price * 1.1
+            # Method 1: Analyst target price (most reliable)
+            if target_price and target_price > 0:
+                fair_values.append(target_price)
+            
+            # Method 2: Forward PE based (if growth stock)
+            if forward_pe and forward_pe > 0 and eps and eps > 0:
+                # Use forward PE as indicator of expected growth
+                growth_pe = min(forward_pe * 1.2, 30)  # Cap at 30x
+                fair_values.append(eps * growth_pe)
+            
+            # Method 3: Current PE regression to mean (for value stocks)
+            if pe and pe > 0 and pe < 25 and price > 0:
+                # Stock already reasonably valued, small upside
+                fair_values.append(price * 1.1)
+            elif pe and pe > 25 and price > 0:
+                # High PE stock - use current price as baseline
+                fair_values.append(price * 0.95)
+            
+            # Method 4: Simple EPS * industry PE
+            if eps and eps > 0 and not fair_values:
+                sector = safe_get(info, 'sector', '')
+                if 'Technology' in sector:
+                    fair_values.append(eps * 25)
+                elif 'Consumer' in sector:
+                    fair_values.append(eps * 20)
+                else:
+                    fair_values.append(eps * 18)
+            
+            fair_value = sum(fair_values) / len(fair_values) if fair_values else price
             data['fair_value'] = fair_value
             
             # Calculate score
