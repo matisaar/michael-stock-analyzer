@@ -90,9 +90,12 @@
         </div>
         
         <div class="search-section">
-            <input type="text" class="search-input" id="searchInput" placeholder="Enter stock ticker (AAPL, TSLA, CRCT...)">
+            <input type="text" class="search-input" id="searchInput" placeholder="Enter stock ticker (AAPL, TSLA, CRCT...)" list="tickerList" oninput="handleSearchInput(this.value)">
+            <datalist id="tickerList"></datalist>
             <button class="btn btn-primary" onclick="analyze()">🔍 Analyze</button>
+            <button class="btn" onclick="scanOpportunities()" style="background:#1a1a1a;border:1px solid #333;color:#fff;">🔎 Scan All</button>
         </div>
+        <p id="tickerStatus" style="text-align:center;color:#666;font-size:12px;margin-bottom:16px;">Loading stock symbols...</p>
         
         <div id="error" class="error" style="display:none;"></div>
         <div id="loading" class="loading" style="display:none;"><div class="spinner"></div><p>Loading...</p></div>
@@ -111,22 +114,84 @@
 var KEY = localStorage.getItem('fmp_key') || '';
 var API = 'https://financialmodelingprep.com/api/v3';
 
-var STOCKS = [
-    {s:'AAPL',n:'Apple'},
-    {s:'MSFT',n:'Microsoft'},
-    {s:'GOOGL',n:'Alphabet'},
-    {s:'AMZN',n:'Amazon'},
-    {s:'TSLA',n:'Tesla'},
-    {s:'META',n:'Meta'},
-    {s:'NVDA',n:'NVIDIA'},
-    {s:'JPM',n:'JPMorgan'},
-    {s:'V',n:'Visa'},
-    {s:'WMT',n:'Walmart'},
-    {s:'NFLX',n:'Netflix'},
-    {s:'CRCT',n:'Cricut'}
+// GitHub source for live stock lists (updated nightly)
+var GITHUB_STOCKS_URL = 'https://raw.githubusercontent.com/rreichel3/US-Stock-Symbols/main';
+var ALL_TICKERS = [];
+var FILTERED_STOCKS = [];
+
+// Default popular stocks (shown before GitHub data loads)
+var DEFAULT_STOCKS = [
+    {s:'AAPL',n:'Apple'}, {s:'MSFT',n:'Microsoft'}, {s:'GOOGL',n:'Alphabet'},
+    {s:'AMZN',n:'Amazon'}, {s:'TSLA',n:'Tesla'}, {s:'META',n:'Meta'},
+    {s:'NVDA',n:'NVIDIA'}, {s:'JPM',n:'JPMorgan'}, {s:'V',n:'Visa'},
+    {s:'WMT',n:'Walmart'}, {s:'NFLX',n:'Netflix'}, {s:'CRCT',n:'Cricut'}
 ];
+var STOCKS = DEFAULT_STOCKS;
+
+// Fetch stock symbols from GitHub (rreichel3/US-Stock-Symbols)
+async function loadTickersFromGitHub() {
+    try {
+        var statusEl = document.getElementById('tickerStatus');
+        if(statusEl) statusEl.textContent = '⏳ Loading stock symbols from GitHub...';
+        
+        // Fetch all three exchanges in parallel
+        var [nasdaq, nyse, amex] = await Promise.all([
+            fetch(GITHUB_STOCKS_URL + '/nasdaq/nasdaq_tickers.json').then(r => r.json()).catch(() => []),
+            fetch(GITHUB_STOCKS_URL + '/nyse/nyse_tickers.json').then(r => r.json()).catch(() => []),
+            fetch(GITHUB_STOCKS_URL + '/amex/amex_tickers.json').then(r => r.json()).catch(() => [])
+        ]);
+        
+        // Combine and dedupe
+        var combined = new Set([...nasdaq, ...nyse, ...amex]);
+        ALL_TICKERS = Array.from(combined).sort();
+        
+        // Update autocomplete
+        updateAutocomplete();
+        
+        if(statusEl) {
+            statusEl.textContent = '✅ Loaded ' + ALL_TICKERS.length.toLocaleString() + ' US stocks (NASDAQ + NYSE + AMEX)';
+            statusEl.style.color = '#00d374';
+        }
+        console.log('Loaded ' + ALL_TICKERS.length + ' tickers from GitHub');
+    } catch(e) {
+        console.error('Failed to load tickers:', e);
+        var statusEl = document.getElementById('tickerStatus');
+        if(statusEl) {
+            statusEl.textContent = '⚠️ Using default stocks (GitHub unavailable)';
+            statusEl.style.color = '#ffb800';
+        }
+    }
+}
+
+// Autocomplete for search
+function updateAutocomplete() {
+    var datalist = document.getElementById('tickerList');
+    if(!datalist) return;
+    datalist.innerHTML = '';
+    // Add popular ones first, then random sample
+    var popular = ['AAPL','MSFT','GOOGL','AMZN','TSLA','META','NVDA','JPM','V','WMT','NFLX','CRCT','AMD','INTC','COST','HD','DIS','PYPL','ADBE','CRM'];
+    popular.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t;
+        datalist.appendChild(opt);
+    });
+}
+
+// Search/filter tickers
+function searchTickers(query) {
+    if(!query || query.length < 1) return [];
+    query = query.toUpperCase();
+    return ALL_TICKERS.filter(function(t) {
+        return t.startsWith(query);
+    }).slice(0, 20);
+}
 
 if(KEY) document.getElementById('apiKey').value = KEY;
+
+// Load tickers on startup
+document.addEventListener('DOMContentLoaded', function() {
+    loadTickersFromGitHub();
+});
 
 function saveKey() {
     KEY = document.getElementById('apiKey').value.trim();
@@ -177,6 +242,63 @@ function load() {
         g.innerHTML = html3;
         document.getElementById('update').textContent = new Date().toLocaleTimeString();
     });
+}
+
+// Handle search input with autocomplete from GitHub data
+function handleSearchInput(val) {
+    if(!val || val.length < 1 || ALL_TICKERS.length === 0) return;
+    var matches = searchTickers(val);
+    var datalist = document.getElementById('tickerList');
+    if(!datalist) return;
+    datalist.innerHTML = '';
+    matches.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = t;
+        datalist.appendChild(opt);
+    });
+}
+
+// Scan random stocks from GitHub list for opportunities
+async function scanOpportunities() {
+    if(!KEY) { err('Enter API key first'); return; }
+    if(ALL_TICKERS.length === 0) { err('Still loading stock list, try again...'); return; }
+    
+    document.getElementById('loading').style.display = 'block';
+    document.getElementById('error').style.display = 'none';
+    
+    // Pick random sample of stocks to scan (API rate limit friendly)
+    var sample = [];
+    var shuffled = ALL_TICKERS.slice().sort(() => Math.random() - 0.5);
+    sample = shuffled.slice(0, 30);
+    
+    var g = document.getElementById('stockGrid');
+    g.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:#666;">Scanning ' + sample.length + ' stocks from ' + ALL_TICKERS.length.toLocaleString() + ' total...</div>';
+    
+    try {
+        var quotes = await apiFetch('/quote/' + sample.join(','));
+        document.getElementById('loading').style.display = 'none';
+        
+        if(!quotes || !quotes.length) {
+            g.innerHTML = '<div style="grid-column:1/-1;color:#ff5252;">Failed to fetch data. Check API key.</div>';
+            return;
+        }
+        
+        var html = '<div style="grid-column:1/-1;margin-bottom:12px;"><span style="color:#00d374;">Found ' + quotes.length + ' stocks</span> from random scan of ' + ALL_TICKERS.length.toLocaleString() + ' US stocks</div>';
+        
+        quotes.sort((a,b) => Math.abs(b.changesPercentage || 0) - Math.abs(a.changesPercentage || 0));
+        
+        for(var i = 0; i < quotes.length; i++) {
+            var x = quotes[i];
+            if(!x.price || x.price < 1) continue;
+            var chg = x.changesPercentage || 0;
+            html += '<div class="stock-card" onclick="analyze(\'' + x.symbol + '\')"><h3>' + (x.name || x.symbol) + '</h3><span class="ticker">' + x.symbol + '</span><div class="price">$' + x.price.toFixed(2) + '</div><span class="change ' + (chg >= 0 ? 'up' : 'down') + '">' + (chg >= 0 ? '▲' : '▼') + ' ' + Math.abs(chg).toFixed(2) + '%</span></div>';
+        }
+        g.innerHTML = html;
+        document.getElementById('update').textContent = new Date().toLocaleTimeString();
+    } catch(e) {
+        document.getElementById('loading').style.display = 'none';
+        g.innerHTML = '<div style="grid-column:1/-1;color:#ff5252;">Scan failed: ' + e.message + '</div>';
+    }
 }
 
 function analyze(sym) {
