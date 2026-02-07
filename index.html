@@ -383,10 +383,11 @@
             <div id="discoverSection" class="discover-section">
                 <div class="discover-header">
                     <div class="section-title">Discover</div>
-                    <button class="btn-discover" id="discoverBtn" onclick="loadDiscover()">Shuffle</button>
                 </div>
-                <div id="discoverGrid" class="discover-grid">
-                    <div class="discover-loading">Tap Shuffle to discover stocks</div>
+                <div id="discoverGrid" class="discover-grid"></div>
+                <div id="discoverLoader" class="discover-loading" style="display:none">
+                    <div class="spinner" style="width:28px;height:28px;border:2px solid #1e1e1e;border-top-color:#22c55e;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 8px"></div>
+                    Loading more...
                 </div>
             </div>
         </div>
@@ -768,30 +769,78 @@ document.addEventListener('DOMContentLoaded', function() {
     
     loadWatchlist();
     loadDiscover();
+    
+    // Infinite scroll for Discover
+    window.addEventListener('scroll', function() {
+        if (discoverLoading || !document.getElementById('tabMarket').classList.contains('active')) return;
+        var loader = document.getElementById('discoverLoader');
+        if (!loader) return;
+        var rect = loader.getBoundingClientRect();
+        // Load more when loader is within 300px of viewport
+        if (rect.top < window.innerHeight + 300) {
+            loadMoreDiscover();
+        }
+    });
 });
 
-// ========== DISCOVER ==========
+// ========== DISCOVER (Infinite Scroll) ==========
+var discoverLoading = false;
+var loadedSymbols = new Set();
+
 async function loadDiscover() {
-    var btn = document.getElementById('discoverBtn');
     var grid = document.getElementById('discoverGrid');
-    btn.disabled = true;
-    btn.textContent = 'Loading...';
-    grid.innerHTML = '<div class="discover-loading"><div class="spinner" style="width:36px;height:36px;border:2px solid #1e1e1e;border-top-color:#22c55e;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px"></div>Discovering stocks...</div>';
+    var loader = document.getElementById('discoverLoader');
+    
+    // Reset state
+    loadedSymbols.clear();
+    grid.innerHTML = '';
+    
+    // Show initial loading
+    loader.style.display = 'block';
+    
+    // Load first batch
+    await loadMoreDiscover();
+}
+
+async function loadMoreDiscover() {
+    if (discoverLoading) return;
+    discoverLoading = true;
+    
+    var grid = document.getElementById('discoverGrid');
+    var loader = document.getElementById('discoverLoader');
+    loader.style.display = 'block';
+    
     try {
         var resp = await fetch(API_BASE + '/api/discover');
         var data = await resp.json();
-        if (data.picks && data.picks.length > 0) displayDiscoverCards(data.picks);
-        else grid.innerHTML = '<div class="discover-loading">No picks found. Try again!</div>';
+        
+        if (data.picks && data.picks.length > 0) {
+            // Filter out already-loaded symbols
+            var newPicks = data.picks.filter(function(s) {
+                return !loadedSymbols.has(s.symbol);
+            });
+            
+            // Add to loaded set
+            newPicks.forEach(function(s) {
+                loadedSymbols.add(s.symbol);
+            });
+            
+            // Append new cards
+            if (newPicks.length > 0) {
+                appendDiscoverCards(newPicks);
+            }
+        }
     } catch (e) {
-        grid.innerHTML = '<div class="discover-loading">Error loading picks. Try again!</div>';
+        console.error('Discover error:', e);
     }
-    btn.disabled = false;
-    btn.textContent = 'Shuffle';
+    
+    loader.style.display = 'block'; // Keep loader visible for infinite scroll
+    discoverLoading = false;
 }
 
-function displayDiscoverCards(picks) {
+function appendDiscoverCards(picks) {
     var grid = document.getElementById('discoverGrid');
-    grid.innerHTML = picks.map(function(s) {
+    var html = picks.map(function(s) {
         var scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
         var upsideClass = (s.upside || 0) >= 0 ? 'up' : 'down';
         var arrow = (s.upside || 0) >= 0 ? '↑' : '↓';
@@ -801,7 +850,7 @@ function displayDiscoverCards(picks) {
         return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
             '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3>' +
             '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.industry || s.sector || 'Stock') + '</span></div></div>' +
-            '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
+            '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-industry="' + escapeAttr(s.industry || '') + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
             '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div></div>' +
             '<div class="mini-stats">' +
@@ -811,6 +860,7 @@ function displayDiscoverCards(picks) {
             '<div class="mini-stat"><span>ROE</span><span class="val ' + (s.roe > 10 ? 'good' : s.roe != null && s.roe < 0 ? 'bad' : '') + '">' + (s.roe != null ? s.roe.toFixed(1) + '%' : 'N/A') + '</span></div>' +
             '</div></div>';
     }).join('');
+    grid.insertAdjacentHTML('beforeend', html);
 }
 
 // ========== ANALYZE ==========
