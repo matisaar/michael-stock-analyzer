@@ -1263,24 +1263,66 @@ function displayStock(data) {
         '<div class="algo-toggle" onclick="toggleAlgo()">How everything is calculated ▼</div>' +
         '<div id="algoDetail" class="algo-detail" style="display:none">' +
             '<div class="algo-section">' +
-                '<h4>Investment Score (100 pts max)</h4>' +
-                '<p>Points awarded across 7 financial health criteria:</p>' +
-                '<div class="algo-row"><span>Return on Assets (ROA) &gt; 10%</span><span class="pts">15 pts</span></div>' +
-                '<div class="algo-row"><span>Return on Equity (ROE) &gt; 10%</span><span class="pts">15 pts</span></div>' +
-                '<div class="algo-row"><span>Cash ≥ Total Debt</span><span class="pts">15 pts</span></div>' +
-                '<div class="algo-row"><span>Undervalued &gt;30% vs blended fair value</span><span class="pts">20 pts</span></div>' +
-                '<div class="algo-row"><span>Profit Margin &gt; 15%</span><span class="pts">10 pts</span></div>' +
-                '<div class="algo-row"><span>Price/Sales &lt; 2x</span><span class="pts">10 pts</span></div>' +
-                '<div class="algo-row"><span>Positive Free Cash Flow</span><span class="pts">15 pts</span></div>' +
+                '<h4>📊 Default Score — Michael\'s Rule #1 (100 pts)</h4>' +
+                '<p>Proportional scoring — points scale with how well each metric performs, not pass/fail.</p>' +
+                '<div class="algo-row"><span>Return on Assets (ROA)</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Scales linearly: −5% → 0 pts, 15%+ → 15 pts</span><span></span></div>' +
+                '<div class="algo-row"><span>Return on Equity (ROE)</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Scales linearly: −5% → 0 pts, 15%+ → 15 pts</span><span></span></div>' +
+                '<div class="algo-row"><span>Cash / Debt Coverage</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Based on cash÷debt ratio: 2x+ coverage → 15 pts. No debt → full credit</span><span></span></div>' +
+                '<div class="algo-row"><span>Fair Value Upside</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Based on % undervalued vs blended fair value: 50%+ → 20 pts, 0% → 0 pts</span><span></span></div>' +
+                '<div class="algo-row"><span>Profit Margin</span><span class="pts">10 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Scales linearly: −5% → 0 pts, 20%+ → 10 pts</span><span></span></div>' +
+                '<div class="algo-row"><span>Price / Sales Ratio</span><span class="pts">10 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Lower is better: P/S &lt; 1 → 10 pts, P/S 5+ → 0 pts</span><span></span></div>' +
+                '<div class="algo-row"><span>Free Cash Flow Yield</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">FCF ÷ Market Cap: 10%+ yield → 15 pts, proportional below</span><span></span></div>' +
                 '<div class="algo-row" style="border-top:2px solid #1e1e1e;padding-top:6px;margin-top:4px;font-weight:600;color:#888"><span>Maximum Score</span><span class="pts">100 pts</span></div>' +
-                '<p style="margin-top:6px;font-size:11px;color:#555">Partial credit: ROA/ROE 5-10% → 7pts. Undervalue 10-30% → 10pts. Margin 5-15% → 5pts.</p>' +
             '</div>' +
             '<div class="algo-section">' +
-                '<h4>Fair Value Calculation</h4>' +
+                '<h4>💎 Deep Value Algorithm</h4>' +
+                '<p>Emphasizes cheap multiples, dividends, and low debt for bargain hunters.</p>' +
+                '<div class="algo-row"><span>Low P/E Ratio — PE &lt; 10 → full pts</span><span class="pts">25 pts</span></div>' +
+                '<div class="algo-row"><span>Low P/B Ratio — PB &lt; 1 → full pts</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Dividend Yield — scales with yield %</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Low Debt/Equity — D/E &lt; 0.5 → full pts</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>FCF Yield</span><span class="pts">20 pts</span></div>' +
+            '</div>' +
+            '<div class="algo-section">' +
+                '<h4>🚀 Growth Focus Algorithm</h4>' +
+                '<p>Prioritizes companies with strong revenue and earnings momentum.</p>' +
+                '<div class="algo-row"><span>Revenue Growth — scales with growth %</span><span class="pts">30 pts</span></div>' +
+                '<div class="algo-row"><span>Earnings Growth</span><span class="pts">25 pts</span></div>' +
+                '<div class="algo-row"><span>High ROE — ability to compound</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Profit Margin — scalable profitability</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Momentum Bonus — undervalued = +10</span><span class="pts">10 pts</span></div>' +
+            '</div>' +
+            '<div class="algo-section">' +
+                '<h4>🏰 Quality + Moat Algorithm</h4>' +
+                '<p>Scores competitive advantages — high returns, pricing power, and cash generation.</p>' +
+                '<div class="algo-row"><span>ROE (ROIC proxy) — consistent high returns</span><span class="pts">25 pts</span></div>' +
+                '<div class="algo-row"><span>ROA — asset efficiency</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Gross Margin — pricing power</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Profit Margin — operating efficiency</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>FCF Yield — cash generation</span><span class="pts">20 pts</span></div>' +
+            '</div>' +
+            '<div class="algo-section">' +
+                '<h4>💰 Dividend Safety Algorithm</h4>' +
+                '<p>Evaluates whether dividends are sustainable and well-covered.</p>' +
+                '<div class="algo-row"><span>Dividend Yield — 5%+ → full pts</span><span class="pts">25 pts</span></div>' +
+                '<div class="algo-row"><span>Payout Ratio — 30-60% ideal zone</span><span class="pts">25 pts</span></div>' +
+                '<div class="algo-row"><span>Positive Free Cash Flow — can afford dividends</span><span class="pts">20 pts</span></div>' +
+                '<div class="algo-row"><span>Low Debt/Equity — safety buffer</span><span class="pts">15 pts</span></div>' +
+                '<div class="algo-row"><span>Profit Margin — earnings stability</span><span class="pts">15 pts</span></div>' +
+            '</div>' +
+            '<div class="algo-section">' +
+                '<h4>📐 Fair Value Calculation</h4>' +
                 '<p>Blended average of ' + fvComps.length + ' valuation model(s):</p>' +
                 fvCompHtml +
                 '<div class="algo-component" style="border-top:2px solid #1e1e1e;padding-top:6px;margin-top:6px;font-weight:600"><span style="color:#888">= Blended Fair Value</span><span class="val" style="color:#22c55e">$' + (data.fair_value || 0).toFixed(2) + '</span></div>' +
-                '<p style="margin-top:6px;font-size:11px;color:#555">Includes: analyst targets, forward PE, PEG growth-adjusted PE, and PE-based adjustments when available.</p>' +
+                '<p style="margin-top:6px;font-size:11px;color:#555">Models used when data is available: analyst consensus target, forward PE fair value, PEG growth-adjusted PE, and sector PE comparison.</p>' +
             '</div>' +
             stickerFormulaHtml +
         '</div></div>';
