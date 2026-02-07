@@ -4,13 +4,7 @@ import json
 import os
 from datetime import datetime
 
-# SETUP FOR EMAIL NOTIFICATIONS:
-# 1. Go to formspree.io and sign up (free)
-# 2. Create a new form - it will give you an ID like "xyzabcde"
-# 3. In Vercel dashboard: Settings > Environment Variables
-# 4. Add: FORMSPREE_ID = your_form_id
-# Without this, reports are logged to Vercel function logs only
-FORMSPREE_ID = os.environ.get('FORMSPREE_ID', '')
+FORMSPREE_ID = os.environ.get('FORMSPREE_ID', '') or 'meelqaqa'
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
