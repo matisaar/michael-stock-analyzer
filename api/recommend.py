@@ -105,93 +105,110 @@ def calculate_sticker_price(info, price):
 
 
 def rule1_score(info, price):
-    """Score a stock 0-100 based purely on Rule #1 Investing principles.
+    """Score a stock 0-100 using the same criteria as the analyze API.
+    This ensures consistency between For You recommendations and stock details.
 
     Scoring breakdown (100 pts max):
-    - ROIC ≥ 10%: up to 20 pts
-    - ROE ≥ 15% (moat indicator): up to 15 pts
-    - Revenue growth ≥ 10%: up to 15 pts
-    - EPS growth ≥ 10%: up to 15 pts
-    - FCF positive & growing: up to 10 pts
-    - Price ≤ MOS price (margin of safety): up to 20 pts
-    - Debt < Equity (financial fortress): up to 5 pts
+    - ROA > 10%: up to 15 pts
+    - ROE > 10%: up to 15 pts
+    - Cash ≥ Debt: up to 15 pts
+    - Undervalued (fair value upside): up to 20 pts
+    - Profit margin > 15%: up to 10 pts
+    - P/S ratio < 2: up to 10 pts
+    - Positive FCF: up to 15 pts
     """
     score = 0
 
-    # 1. ROIC (20 pts) — the #1 Rule #1 metric
-    roic = calculate_roic(info)
-    if roic is not None:
-        if roic >= 15:
-            score += 20
-        elif roic >= 10:
-            score += 14
-        elif roic >= 5:
-            score += 6
+    # 1. ROA (15 pts) — same as analyze
+    roa = to_pct(info.get('returnOnAssets'))
+    if roa is not None:
+        if roa > 10:
+            score += 15
+        elif roa > 5:
+            score += 7
 
-    # 2. ROE (15 pts) — moat indicator
+    # 2. ROE (15 pts) — same threshold as analyze (10%)
     roe = to_pct(info.get('returnOnEquity'))
     if roe is not None:
-        if roe >= 20:
+        if roe > 10:
             score += 15
-        elif roe >= 15:
-            score += 12
-        elif roe >= 10:
-            score += 6
+        elif roe > 5:
+            score += 7
 
-    # 3. Revenue Growth (15 pts)
-    rg = to_pct(info.get('revenueGrowth'))
-    if rg is not None:
-        if rg >= 15:
-            score += 15
-        elif rg >= 10:
-            score += 12
-        elif rg >= 5:
-            score += 6
+    # 3. Cash vs Debt (15 pts)
+    cash = safe_get(info, 'totalCash', 0)
+    debt = safe_get(info, 'totalDebt', 0)
+    if cash > 0 and cash >= debt:
+        score += 15
 
-    # 4. EPS Growth (15 pts)
-    eg = to_pct(info.get('earningsGrowth'))
-    if eg is not None:
-        if eg >= 15:
-            score += 15
-        elif eg >= 10:
-            score += 12
-        elif eg >= 5:
-            score += 6
-
-    # 5. FCF health (10 pts)
-    fcf = safe_get(info, 'freeCashflow', 0)
-    revenue = safe_get(info, 'totalRevenue', 0)
-    if fcf and fcf > 0:
-        score += 5
-        if revenue and revenue > 0:
-            fcf_margin = fcf / revenue * 100
-            if fcf_margin >= 15:
-                score += 5
-            elif fcf_margin >= 10:
-                score += 3
-
-    # 6. Margin of Safety (20 pts) — Phil Town's sticker price
+    # 4. Fair value / Undervalued (20 pts)
     sticker_data = calculate_sticker_price(info, price)
     mos_price = None
     sticker_price = None
+    upside_for_display = 0
+    
+    # Calculate fair value similar to analyze API
+    eps = safe_get(info, 'trailingEps', 0)
+    pe = safe_get(info, 'trailingPE', 0)
+    forward_pe = safe_get(info, 'forwardPE', 0)
+    target_price = safe_get(info, 'targetMeanPrice', 0)
+    earnings_growth = info.get('earningsGrowth')
+    
+    fair_values = []
+    if target_price and target_price > 0:
+        fair_values.append(target_price)
+    if forward_pe and forward_pe > 0 and eps and eps > 0:
+        fair_values.append(eps * min(forward_pe * 1.2, 30))
+    if earnings_growth and float(earnings_growth) > 0 and eps and eps > 0:
+        eg = float(earnings_growth)
+        gp = eg * 100 if eg < 1 else eg
+        fv = eps * min(gp, 40)
+        if fv > 0:
+            fair_values.append(fv)
+    
+    fair_value = sum(fair_values) / len(fair_values) if fair_values else price
+    
+    if price > 0 and fair_value > 0:
+        upside = ((fair_value - price) / price) * 100
+        upside_for_display = upside
+        if upside > 30:
+            score += 20
+        elif upside > 10:
+            score += 10
+        elif upside > 0:
+            score += 5
+
     if sticker_data:
         mos_price = sticker_data['mos_price']
         sticker_price = sticker_data['sticker']
-        if price <= mos_price:
-            score += 20  # ON SALE — below MOS
-        elif price <= sticker_price * 0.75:
-            score += 14  # Good deal
-        elif price <= sticker_price:
-            score += 7   # Fair value
 
-    # 7. Financial fortress (5 pts)
-    cash = safe_get(info, 'totalCash', 0)
-    debt = safe_get(info, 'totalDebt', 0)
-    if cash > 0 and debt >= 0 and (debt == 0 or cash >= debt * 0.5):
-        score += 5
+    # 5. Profit margin (10 pts)
+    pm = to_pct(info.get('profitMargins'))
+    if pm is not None:
+        if pm > 15:
+            score += 10
+        elif pm > 5:
+            score += 5
+
+    # 6. P/S ratio (10 pts)
+    ps = safe_get(info, 'priceToSalesTrailing12Months', 0)
+    if ps > 0 and ps < 2:
+        score += 10
+
+    # 7. FCF (15 pts)
+    fcf = safe_get(info, 'freeCashflow', 0)
+    if fcf and fcf > 0:
+        score += 15
+
+    # Calculate ROIC for display (not used in scoring, but shown in UI)
+    roic = calculate_roic(info)
 
     # Determine moat
     has_moat = (roic is not None and roic >= 10) and (roe is not None and roe >= 15)
+
+    # Revenue and EPS growth for display
+    rg = to_pct(info.get('revenueGrowth'))
+    eg = to_pct(info.get('earningsGrowth'))
 
     return {
         'score': min(score, 100),
@@ -203,6 +220,7 @@ def rule1_score(info, price):
         'sticker_price': sticker_price,
         'mos_price': mos_price,
         'growth_rate': sticker_data['growth_rate'] if sticker_data else None,
+        'upside': round(upside_for_display, 1),
     }
 
 
@@ -397,10 +415,8 @@ class handler(BaseHTTPRequestHandler):
                 # Combine: 60% Rule #1 quality + 40% affinity
                 final_score = int(quality_score * 0.6 + min(affinity, max_affinity) * 0.4 / max_affinity * 100 * 0.4)
 
-                # Calculate upside from sticker price
-                upside = 0
-                if r1['sticker_price'] and price > 0:
-                    upside = ((r1['sticker_price'] - price) / price) * 100
+                # Use the upside calculated in rule1_score (based on fair value, same as analyze API)
+                upside = r1.get('upside', 0)
 
                 recommendations.append({
                     'symbol': ticker,
