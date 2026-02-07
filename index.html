@@ -448,15 +448,15 @@
         
         <div id="detail" class="detail-view"></div>
         
-        <footer>Bosdet Labs &copy; 2025 &nbsp;·&nbsp; <span class="bug-link" onclick="openBugReport()">Report a bug</span></footer>
+        <footer>Bosdet Labs &copy; 2025 &nbsp;·&nbsp; <span class="bug-link" onclick="openBugReport()">Send feedback to dev</span></footer>
         <div id="toast" class="toast"></div>
 
         <!-- Bug Report Modal -->
         <div id="bugOverlay" class="bug-overlay" onclick="if(event.target===this)closeBugReport()">
             <div class="bug-modal">
-                <h3>Report a bug</h3>
-                <p>Describe what went wrong or what looked off. Include the stock ticker if relevant.</p>
-                <textarea id="bugText" placeholder="e.g. Searched for AAPL and the score showed N/A..."></textarea>
+                <h3>Send Feedback</h3>
+                <p>Report a bug, suggest an improvement, or request a feature — goes straight to the developer.</p>
+                <textarea id="bugText" placeholder="e.g. The score for AAPL seems off… or: It'd be cool if you added…"></textarea>
                 <div class="bug-actions">
                     <button class="btn btn-secondary" onclick="closeBugReport()">Cancel</button>
                     <button class="btn btn-primary" onclick="submitBugReport()">Send</button>
