@@ -37,25 +37,27 @@ class handler(BaseHTTPRequestHandler):
             print(f"======================")
             
             email_sent = False
-            if FORMSPREE_ID:
-                try:
-                    import urllib.request
-                    formspree_data = json.dumps({
-                        'message': f"BUG REPORT\n\n{message}\n\nPage: {page}\nTime: {timestamp}",
-                        '_subject': 'Bosdet Labs Bug Report'
-                    }).encode()
-                    
-                    req = urllib.request.Request(
-                        f'https://formspree.io/f/{FORMSPREE_ID}',
-                        data=formspree_data,
-                        headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
-                    )
-                    urllib.request.urlopen(req, timeout=5)
-                    email_sent = True
-                except Exception as email_err:
-                    print(f"Formspree error: {email_err}")
+            email_error = None
+            fid = FORMSPREE_ID
+            try:
+                import urllib.request
+                formspree_data = json.dumps({
+                    'message': f"BUG REPORT\n\n{message}\n\nPage: {page}\nTime: {timestamp}",
+                    '_subject': 'Bosdet Labs Bug Report'
+                }).encode()
+                
+                req = urllib.request.Request(
+                    f'https://formspree.io/f/{fid}',
+                    data=formspree_data,
+                    headers={'Content-Type': 'application/json', 'Accept': 'application/json'}
+                )
+                urllib.request.urlopen(req, timeout=10)
+                email_sent = True
+            except Exception as email_err:
+                email_error = str(email_err)
+                print(f"Formspree error: {email_err}")
             
-            self.wfile.write(json.dumps({'ok': True, 'email_sent': email_sent, 'logged': True}).encode())
+            self.wfile.write(json.dumps({'ok': True, 'email_sent': email_sent, 'logged': True, 'fid': fid, 'v': 2, 'email_error': email_error}).encode())
             
         except Exception as e:
             print(f"Bug report error: {e}")
