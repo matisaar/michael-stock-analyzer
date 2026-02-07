@@ -425,7 +425,7 @@
                 <div style="display:flex;align-items:center;gap:8px">
                     <span style="font-size:12px;color:#666">Score by:</span>
                     <select id="algoSelector" class="algo-select" onchange="changeAlgorithm()">
-                        <option value="default">Michael's Rule #1</option>
+                        <option value="default">Bosdet Labs Default</option>
                         <option value="value">Deep Value</option>
                         <option value="growth">Growth Focus</option>
                         <option value="quality">Quality + Moat</option>
@@ -504,7 +504,7 @@ window.addEventListener('popstate', function(e) {
 // ========== ALGORITHM SELECTOR ==========
 var currentAlgo = 'default';
 var algoDescriptions = {
-    'default': "Michael's Rule #1 — Phil Town style: ROA, ROE, Cash/Debt, Fair Value, Margins, P/S, FCF",
+    'default': "Bosdet Labs Default — Proportional scoring: ROA, ROE, Cash/Debt, Fair Value, Margins, P/S, FCF",
     'value': "Deep Value — Heavy weight on P/E, P/B, dividend yield, low debt",
     'growth': "Growth Focus — Revenue growth, earnings growth, market momentum",
     'quality': "Quality + Moat — ROIC, margins, brand strength, competitive advantages",
@@ -1263,7 +1263,7 @@ function displayStock(data) {
         '<div class="algo-toggle" onclick="toggleAlgo()">How everything is calculated ▼</div>' +
         '<div id="algoDetail" class="algo-detail" style="display:none">' +
             '<div class="algo-section">' +
-                '<h4>📊 Default Score — Michael\'s Rule #1 (100 pts)</h4>' +
+                '<h4>🧪 Bosdet Labs Default Score (100 pts)</h4>' +
                 '<p>Proportional scoring — points scale with how well each metric performs, not pass/fail.</p>' +
                 '<div class="algo-row"><span>Return on Assets (ROA)</span><span class="pts">15 pts</span></div>' +
                 '<div class="algo-row"><span style="color:#555;font-size:11px;padding-left:8px">Scales linearly: −5% → 0 pts, 15%+ → 15 pts</span><span></span></div>' +
