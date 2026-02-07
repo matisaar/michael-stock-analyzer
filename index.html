@@ -59,19 +59,7 @@
         /* Section Headers */
         .section-title { color: var(--text-secondary); font-size: 14px; font-weight: 600; margin-bottom: 12px; }
         
-        /* Stock Grid */
-        .stock-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-bottom: 24px; }
-        .stock-card { 
-            background: var(--surface); border: 1px solid var(--border); border-radius: 12px; 
-            padding: 16px; cursor: pointer; transition: all 0.15s;
-            -webkit-user-select: none; user-select: none;
-        }
-        .stock-card:active { transform: scale(0.98); background: var(--surface-alt); }
-        .stock-card .card-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-        .stock-card h3 { font-size: 15px; font-weight: 650; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary); }
-        .stock-card .ticker { color: var(--text-muted); font-size: 13px; font-weight: 500; }
-        .stock-card .price { font-size: 22px; font-weight: 700; margin-top: 10px; }
-        .stock-card .badges { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+
         .badge { font-size: 11px; padding: 4px 10px; border-radius: 8px; font-weight: 600; }
         .badge.up { background: var(--green-muted); color: var(--green); }
         .badge.down { background: var(--red-muted); color: var(--red); }
@@ -316,7 +304,6 @@
             .container { padding: 20px 16px; }
             .brand { font-size: 19px; }
             .search-input { flex: 1; }
-            .stock-grid { grid-template-columns: repeat(2, 1fr); }
             .discover-grid { grid-template-columns: repeat(2, 1fr); }
             .watchlist-grid { grid-template-columns: repeat(2, 1fr); }
             .rec-grid { grid-template-columns: repeat(2, 1fr); }
@@ -330,10 +317,6 @@
             .search-box { margin-bottom: 28px; }
             .search-input { font-size: 16px; padding: 14px 18px; max-width: 400px; }
             .btn { font-size: 15px; padding: 14px 24px; }
-            .stock-grid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
-            .stock-card { padding: 18px; }
-            .stock-card h3 { font-size: 16px; }
-            .stock-card .price { font-size: 24px; }
             .discover-grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
             .discover-card { padding: 18px; }
             .discover-card .card-top h3 { font-size: 16px; max-width: 200px; }
@@ -798,56 +781,6 @@ function displayDiscoverCards(picks) {
             '<div class="mini-stat"><span>ROE</span><span class="val ' + (s.roe > 10 ? 'good' : s.roe != null && s.roe < 0 ? 'bad' : '') + '">' + (s.roe != null ? s.roe.toFixed(1) + '%' : 'N/A') + '</span></div>' +
             '</div></div>';
     }).join('');
-}
-
-// ========== STOCK GRID ==========
-async function loadDefaultStocks() {
-    var grid = document.getElementById('stockGrid');
-    // Skeleton loading
-    grid.innerHTML = '';
-    for (var i = 0; i < 10; i++) {
-        grid.innerHTML += '<div class="skeleton-card"><div class="skeleton skeleton-line w60"></div><div class="skeleton skeleton-line w40"></div><div class="skeleton skeleton-line tall w80"></div><div class="skeleton skeleton-line w60"></div></div>';
-    }
-    try {
-        var resp = await fetch(API_BASE + '/api/scan');
-        var data = await resp.json();
-        if (data.opportunities && data.opportunities.length > 0) displayStockGrid(data.opportunities);
-        else grid.innerHTML = '<div class="empty-state"><div class="icon">—</div><p>No stocks loaded yet. Try refreshing.</p></div>';
-    } catch (e) {
-        setTimeout(loadDefaultStocks, 2500);
-    }
-}
-
-function displayStockGrid(stocks) {
-    var grid = document.getElementById('stockGrid');
-    grid.innerHTML = stocks.map(function(s) {
-        var scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
-        var upsideClass = (s.upside || 0) >= 0 ? 'up' : 'down';
-        var arrow = (s.upside || 0) >= 0 ? '↑' : '↓';
-        var heartClass = isInWatchlist(s.symbol) ? 'card-save-btn saved' : 'card-save-btn';
-        var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
-        return '<div class="stock-card" onclick="analyze(\'' + s.symbol + '\')">' +
-            '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3><span class="ticker">' + s.symbol + '</span></div>' +
-            '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
-            '<div class="price">$' + (s.price || 0).toFixed(2) + '</div>' +
-            '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '% upside</span><span class="badge ' + scoreClass + '">Score: ' + (s.score || 0) + '</span></div>' +
-        '</div>';
-    }).join('');
-}
-
-async function scanOpportunities() {
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('error').style.display = 'none';
-    switchTab('market');
-    try {
-        var resp = await fetch(API_BASE + '/api/scan');
-        var data = await resp.json();
-        document.getElementById('loading').style.display = 'none';
-        if (data.opportunities) displayStockGrid(data.opportunities);
-    } catch (e) {
-        document.getElementById('loading').style.display = 'none';
-        showError('Connection error. Please try again.');
-    }
 }
 
 // ========== ANALYZE ==========
