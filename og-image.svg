@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a"/>
+      <stop offset="100%" style="stop-color:#111111"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#22c55e;stop-opacity:0.3"/>
+      <stop offset="100%" style="stop-color:#22c55e;stop-opacity:0"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a1a1a" stroke-width="1"/>
+  </pattern>
+  <rect width="1200" height="630" fill="url(#grid)" opacity="0.5"/>
+  
+  <!-- Green glow circle behind test tube -->
+  <circle cx="600" cy="260" r="120" fill="url(#glow)"/>
+  
+  <!-- Test tube emoji as text -->
+  <text x="600" y="300" font-size="140" text-anchor="middle" dominant-baseline="middle">🧪</text>
+  
+  <!-- Brand name -->
+  <text x="600" y="420" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="700" fill="#e8e8e8" text-anchor="middle">
+    Bosdet <tspan fill="#22c55e">Labs</tspan>
+  </text>
+  
+  <!-- Tagline -->
+  <text x="600" y="490" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif" font-size="28" fill="#888888" text-anchor="middle">
+    Rule #1 Investing — Analyze stocks like Phil Town
+  </text>
+  
+  <!-- Subtle bottom border -->
+  <rect x="0" y="625" width="1200" height="5" fill="#22c55e"/>
+</svg>

@@ -7,7 +7,19 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#0a0a0a">
     <title>Bosdet Labs</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect fill='%230a0a0a' width='180' height='180'/><text x='90' y='115' font-size='100' text-anchor='middle'>🧪</text></svg>">
+    
+    <!-- Open Graph / Social Share -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Bosdet Labs 🧪">
+    <meta property="og:description" content="Rule #1 Investing — Analyze stocks like Phil Town. Free fundamental analysis with sticker price calculations.">
+    <meta property="og:image" content="https://bosdetlabs.com/og-image.svg">
+    <meta property="og:url" content="https://bosdetlabs.com">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Bosdet Labs 🧪">
+    <meta name="twitter:description" content="Rule #1 Investing — Analyze stocks like Phil Town.">
+    <meta name="description" content="Rule #1 Investing — Analyze stocks like Phil Town. Free fundamental analysis with sticker price calculations.">
     <style>
         :root {
             --bg: #0a0a0a; --surface: #111; --surface-alt: #161616;
@@ -211,6 +223,10 @@
         .watchlist-card .wl-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
         .watchlist-card .wl-saved-info { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 
+        /* Algorithm Selector */
+        .algo-select { background: var(--surface); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer; -webkit-appearance: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L2 4h8z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 8px center; }
+        .algo-select:focus { outline: none; border-color: var(--green); }
+
         /* Recommendations */
         .rec-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; overflow: hidden; }
@@ -263,6 +279,17 @@
         /* Score Points */
         .check-pts { font-size: 11px; color: var(--text-muted); font-weight: 600; min-width: 28px; text-align: right; }
         .check-pts.earned { color: var(--green); }
+        
+        /* Prominent Score Badge */
+        .score-badge { display: flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 20px; font-weight: 700; font-size: 16px; }
+        .score-badge.high { background: var(--green-muted); color: var(--green); }
+        .score-badge.medium { background: var(--amber-muted); color: var(--amber); }
+        .score-badge.low { background: var(--red-muted); color: var(--red); }
+        .score-badge .score-ring-mini { width: 28px; height: 28px; position: relative; }
+        .score-badge .score-ring-mini svg { transform: rotate(-90deg); width: 100%; height: 100%; }
+        .score-badge .score-ring-mini circle { fill: none; stroke-width: 3; }
+        .score-badge .score-ring-mini .bg { stroke: rgba(255,255,255,0.1); }
+        .score-badge .score-num { font-size: 16px; font-weight: 700; }
 
         /* Algorithm Detail */
         .algo-toggle { cursor: pointer; padding: 12px 0 4px; text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 12px; border-top: 1px solid var(--border); -webkit-user-select: none; user-select: none; }
@@ -393,7 +420,19 @@
         </div>
 
         <div id="tabWatchlist" class="tab-content">
-            <div class="section-title">Saved stocks</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+                <div class="section-title" style="margin-bottom:0">Saved stocks</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:12px;color:#666">Score by:</span>
+                    <select id="algoSelector" class="algo-select" onchange="changeAlgorithm()">
+                        <option value="default">Michael's Rule #1</option>
+                        <option value="value">Deep Value</option>
+                        <option value="growth">Growth Focus</option>
+                        <option value="quality">Quality + Moat</option>
+                        <option value="dividend">Dividend Safety</option>
+                    </select>
+                </div>
+            </div>
             <div id="watchlistGrid" class="watchlist-grid">
                 <div class="empty-state"><div class="icon">♡</div><p>Analyze a stock and tap the heart to save it here.</p></div>
             </div>
@@ -433,6 +472,51 @@ const API_BASE = window.location.origin;
 let watchlistMap = {}; // symbol -> row data
 let currentStockData = null;
 let toastTimer = null;
+
+// ========== SHAREABLE URLs ==========
+function updateURL(symbol) {
+    if (symbol) {
+        history.pushState({ symbol: symbol }, '', '/' + symbol);
+        document.title = symbol + ' — Bosdet Labs';
+    } else {
+        history.pushState({}, '', '/');
+        document.title = 'Bosdet Labs';
+    }
+}
+
+function getSymbolFromURL() {
+    var path = window.location.pathname;
+    if (path && path.length > 1) {
+        return path.substring(1).split('/')[0].toUpperCase();
+    }
+    var params = new URLSearchParams(window.location.search);
+    return params.get('s') || params.get('symbol') || null;
+}
+
+window.addEventListener('popstate', function(e) {
+    if (e.state && e.state.symbol) {
+        analyze(e.state.symbol);
+    } else {
+        back();
+    }
+});
+
+// ========== ALGORITHM SELECTOR ==========
+var currentAlgo = 'default';
+var algoDescriptions = {
+    'default': "Michael's Rule #1 — Phil Town style: ROA, ROE, Cash/Debt, Fair Value, Margins, P/S, FCF",
+    'value': "Deep Value — Heavy weight on P/E, P/B, dividend yield, low debt",
+    'growth': "Growth Focus — Revenue growth, earnings growth, market momentum",
+    'quality': "Quality + Moat — ROIC, margins, brand strength, competitive advantages",
+    'dividend': "Dividend Safety — Yield, payout ratio, dividend growth history"
+};
+
+function changeAlgorithm() {
+    var selector = document.getElementById('algoSelector');
+    currentAlgo = selector.value;
+    showToast('Scoring: ' + selector.options[selector.selectedIndex].text);
+    loadWatchlistView(); // Reload with new scoring
+}
 
 // ========== WATCHLIST (localStorage) ==========
 function loadWatchlist() {
@@ -555,9 +639,9 @@ async function loadWatchlistView() {
         }).join('');
     }
     
-    // Fetch live data for all saved stocks
+    // Fetch live data for all saved stocks with current algorithm
     try {
-        const resp = await fetch(API_BASE + '/api/scan?symbols=' + symbols.join(','), { timeout: 15000 });
+        const resp = await fetch(API_BASE + '/api/scan?symbols=' + symbols.join(',') + '&algo=' + currentAlgo, { timeout: 15000 });
         if (!resp.ok) throw new Error('API error');
         const data = await resp.json();
         
@@ -574,13 +658,17 @@ async function loadWatchlistView() {
                 
                 if (s) {
                     const gainPct = savedPrice && savedPrice > 0 ? ((s.price - savedPrice) / savedPrice * 100) : null;
-                    const scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
+                    const scoreClass = s.score >= 60 ? 'high' : s.score >= 40 ? 'medium' : 'low';
+                    const scoreColor = s.score >= 60 ? '#22c55e' : s.score >= 40 ? '#f59e0b' : '#ef4444';
+                    const circ = 2 * Math.PI * 11;
+                    const off = circ - (s.score / 100) * circ;
                     
                     return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
                         '<div class="wl-top">' +
                             '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
-                            '<div style="display:flex;align-items:flex-start;gap:8px"><div style="text-align:right"><div style="font-size:22px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
-                            '<span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div>' +
+                            '<div style="display:flex;align-items:center;gap:10px">' +
+                            '<div class="score-badge ' + scoreClass + '"><div class="score-ring-mini"><svg viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="11" stroke="' + scoreColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg></div><span class="score-num">' + s.score + '</span></div>' +
+                            '<div style="text-align:right"><div style="font-size:20px;font-weight:700">$' + s.price.toFixed(2) + '</div></div>' +
                             '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button></div>' +
                         '</div>' +
                         (gainPct !== null ? '<div class="wl-saved-info">Since saved: <span style="color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</span> (from $' + savedPrice.toFixed(2) + ')</div>' : '') +
@@ -640,8 +728,10 @@ async function loadRecommendations() {
         
         if (data.recommendations && data.recommendations.length > 0) {
             grid.innerHTML = data.recommendations.map(function(r) {
-                var scoreClass = r.score >= 60 ? 'score-high' : r.score >= 40 ? 'score-medium' : 'score-low';
-                var upsideClass = r.upside >= 0 ? 'up' : 'down';
+                var scoreClass = r.score >= 60 ? 'high' : r.score >= 40 ? 'medium' : 'low';
+                var scoreColor = r.score >= 60 ? '#22c55e' : r.score >= 40 ? '#f59e0b' : '#ef4444';
+                var circ = 2 * Math.PI * 11;
+                var off = circ - (r.score / 100) * circ;
                 
                 return '<div class="rec-card" onclick="analyze(\'' + r.symbol + '\')">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
@@ -649,9 +739,9 @@ async function loadRecommendations() {
                         '<span style="color:#555;font-size:13px">' + r.symbol + ' • ' + (r.industry || r.sector || '') + '</span></div>' +
                         (r.has_moat ? '<span class="moat-badge">Moat</span>' : '') +
                     '</div>' +
-                    '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
                         '<span style="font-size:22px;font-weight:700">$' + r.price.toFixed(2) + '</span>' +
-                        '<div class="badges"><span class="badge ' + upsideClass + '">' + (r.upside >= 0 ? '↑' : '↓') + ' ' + Math.abs(r.upside).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + r.score + '</span></div>' +
+                        '<div class="score-badge ' + scoreClass + '"><div class="score-ring-mini"><svg viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="11" stroke="' + scoreColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg></div><span class="score-num">' + r.score + '</span></div>' +
                     '</div>' +
                     '<div class="r1-stats">' +
                         '<span class="r1-stat">ROIC <span class="val ' + (r.roic >= 10 ? 'good' : r.roic != null && r.roic < 10 ? 'bad' : '') + '">' + (r.roic != null ? r.roic.toFixed(1) + '%' : 'N/A') + '</span></span>' +
@@ -770,6 +860,12 @@ document.addEventListener('DOMContentLoaded', function() {
     loadWatchlist();
     loadDiscover();
     
+    // Check URL for shareable link
+    var urlSymbol = getSymbolFromURL();
+    if (urlSymbol) {
+        analyze(urlSymbol);
+    }
+    
     // Infinite scroll for Discover
     window.addEventListener('scroll', function() {
         if (discoverLoading || !document.getElementById('tabMarket').classList.contains('active')) return;
@@ -841,9 +937,10 @@ async function loadMoreDiscover() {
 function appendDiscoverCards(picks) {
     var grid = document.getElementById('discoverGrid');
     var html = picks.map(function(s) {
-        var scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
-        var upsideClass = (s.upside || 0) >= 0 ? 'up' : 'down';
-        var arrow = (s.upside || 0) >= 0 ? '↑' : '↓';
+        var scoreClass = s.score >= 60 ? 'high' : s.score >= 40 ? 'medium' : 'low';
+        var scoreColor = s.score >= 60 ? '#22c55e' : s.score >= 40 ? '#f59e0b' : '#ef4444';
+        var circ = 2 * Math.PI * 11;
+        var off = circ - (s.score / 100) * circ;
         function mcap(n) { if (!n) return 'N/A'; if (n >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T'; if (n >= 1e9) return '$' + (n/1e9).toFixed(0) + 'B'; if (n >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M'; return '$' + n; }
         var heartClass = isInWatchlist(s.symbol) ? 'card-save-btn saved' : 'card-save-btn';
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
@@ -852,7 +949,7 @@ function appendDiscoverCards(picks) {
             '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.industry || s.sector || 'Stock') + '</span></div></div>' +
             '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-industry="' + escapeAttr(s.industry || '') + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
-            '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div></div>' +
+            '<div class="score-badge ' + scoreClass + '"><div class="score-ring-mini"><svg viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="11" stroke="' + scoreColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg></div><span class="score-num">' + s.score + '</span></div></div>' +
             '<div class="mini-stats">' +
             '<div class="mini-stat"><span>P/E</span><span class="val">' + (s.pe_ratio != null ? s.pe_ratio.toFixed(1) + 'x' : 'N/A') + '</span></div>' +
             '<div class="mini-stat"><span>Mkt Cap</span><span class="val">' + mcap(s.market_cap) + '</span></div>' +
@@ -901,6 +998,7 @@ async function analyze(sym) {
         document.getElementById('loading').style.display = 'none';
         if (data.error) { showError(data.error); back(); return; }
         currentStockData = data;
+        updateURL(data.symbol);
         displayAnalysis(data);
     } catch (e) {
         document.getElementById('loading').style.display = 'none';
@@ -986,6 +1084,14 @@ function buildHeader(data) {
                 heartHtml +
             '</div>' +
         '</div>' +
+        // SCORE NOW RIGHT AFTER HEADER - more prominent position
+        '<div class="card score-card" style="margin-bottom:14px"><div class="card-title">⭐ Investment Score</div>' +
+            '<div class="score-ring">' +
+                '<svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"></circle><circle cx="60" cy="60" r="50" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
+                '<div class="score-text"><div class="num" style="color:' + col + '">' + score + '</div><div class="label">/100</div></div>' +
+            '</div>' +
+            '<ul class="checklist">' + checklistHtml + '</ul>' +
+        '</div>' +
         '<div id="perfRow" class="perf-row" style="margin-bottom:14px"><div class="perf-chip"><span class="tf">Loading performance...</span></div></div>' +
         '<div class="fair-value-card">' +
             '<div><h3>Calculated Upside</h3><div class="upside">' + (upside > 0 ? '+' : '') + upside.toFixed(0) + '%</div></div>' +
@@ -996,14 +1102,8 @@ function buildHeader(data) {
             '</div>' +
         '</div>';
     
-    var scoreSection = 
-        '<div class="card score-card"><div class="card-title">⭐ Investment Score</div>' +
-            '<div class="score-ring">' +
-                '<svg viewBox="0 0 120 120"><circle class="bg" cx="60" cy="60" r="50"></circle><circle cx="60" cy="60" r="50" stroke="' + col + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg>' +
-                '<div class="score-text"><div class="num" style="color:' + col + '">' + score + '</div><div class="label">/100</div></div>' +
-            '</div>' +
-            '<ul class="checklist">' + checklistHtml + '</ul>' +
-        '</div>';
+    // Score section is now included in topSection, but we return empty string for backwards compat
+    var scoreSection = '';
     
     return { topSection: topSection, scoreSection: scoreSection };
 }
@@ -1220,6 +1320,7 @@ function back() {
     } else {
         document.getElementById('tabMarket').classList.add('active');
     }
+    updateURL(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

@@ -49,6 +49,7 @@ def calculate_fair_value(info, price):
     return sum(fair_values) / len(fair_values) if fair_values else price
 
 def calculate_score(info, price, fair_value):
+    """Proportional scoring - points scale with how well each metric performs"""
     score = 0
     roa = to_pct(safe_get(info, 'returnOnAssets', 0))
     roe = to_pct(safe_get(info, 'returnOnEquity', 0))
@@ -57,21 +58,180 @@ def calculate_score(info, price, fair_value):
     fcf = safe_get(info, 'freeCashflow', 0)
     pm = to_pct(safe_get(info, 'profitMargins', 0))
     ps = safe_get(info, 'priceToSalesTrailing12Months', 0)
-    if roa > 10: score += 15
-    elif roa > 5: score += 7
-    if roe > 10: score += 15
-    elif roe > 5: score += 7
-    if cash > 0 and cash >= debt: score += 15
+    market_cap = safe_get(info, 'marketCap', 0)
+    
+    # ROA (max 15) - proportional: -5% -> 0pts, 15% -> 15pts
+    score += max(0, min(15, int((roa + 5) * 15 / 20)))
+    
+    # ROE (max 15) - proportional
+    score += max(0, min(15, int((roe + 5) * 15 / 20)))
+    
+    # Cash vs Debt (max 15) - proportional based on coverage
+    if debt > 0:
+        coverage = cash / debt
+        score += max(0, min(15, int(coverage * 7.5)))
+    elif cash > 0:
+        score += 15
+    
+    # Fair value upside (max 20) - proportional
     if price > 0 and fair_value > 0:
         upside = ((fair_value - price) / price) * 100
-        if upside > 30: score += 20
-        elif upside > 10: score += 10
-        elif upside > 0: score += 5
-    if pm > 15: score += 10
-    elif pm > 5: score += 5
-    if ps > 0 and ps < 2: score += 10
-    if fcf and fcf > 0: score += 15
+        score += max(0, min(20, int(upside * 0.4)))
+    
+    # Profit margin (max 10) - proportional: -5% -> 0pts, 20% -> 10pts
+    score += max(0, min(10, int((pm + 5) * 10 / 25)))
+    
+    # P/S ratio (max 10) - lower is better: <1 = 10pts, 5+ = 0pts
+    if ps > 0:
+        score += max(0, min(10, int((5 - ps) * 2.5)))
+    
+    # FCF (max 15) - proportional based on FCF yield
+    if fcf > 0 and market_cap > 0:
+        fcf_yield = (fcf / market_cap) * 100
+        score += max(0, min(15, int(fcf_yield * 1.5)))
+    elif fcf > 0:
+        score += 10
+    
     return min(score, 100)
+
+
+def calculate_score_value(info, price, fair_value):
+    """Deep Value scoring - emphasizes low multiples and dividends"""
+    score = 0
+    pe = safe_get(info, 'trailingPE', 0)
+    pb = safe_get(info, 'priceToBook', 0)
+    div_yield = to_pct(safe_get(info, 'dividendYield', 0))
+    debt_equity = safe_get(info, 'debtToEquity', 0)
+    fcf = safe_get(info, 'freeCashflow', 0)
+    market_cap = safe_get(info, 'marketCap', 0)
+    
+    # P/E (max 25) - lower is better: PE < 10 = 25pts, PE > 30 = 0
+    if pe > 0: score += max(0, min(25, int((30 - pe) * 1.25)))
+    else: score += 10  # No PE data = middle score
+    
+    # P/B (max 20) - lower is better: PB < 1 = 20pts, PB > 3 = 0
+    if pb > 0: score += max(0, min(20, int((3 - pb) * 10)))
+    
+    # Dividend yield (max 20)
+    score += max(0, min(20, int(div_yield * 5)))
+    
+    # Low debt (max 15) - D/E < 0.5 = 15pts, D/E > 2 = 0
+    if debt_equity >= 0: score += max(0, min(15, int((2 - debt_equity) * 10)))
+    else: score += 10
+    
+    # FCF yield (max 20)
+    if fcf > 0 and market_cap > 0:
+        fcf_yield = (fcf / market_cap) * 100
+        score += max(0, min(20, int(fcf_yield * 2)))
+    
+    return min(score, 100)
+
+
+def calculate_score_growth(info, price, fair_value):
+    """Growth scoring - emphasizes revenue/earnings growth"""
+    score = 0
+    rev_growth = to_pct(safe_get(info, 'revenueGrowth', 0))
+    earn_growth = to_pct(safe_get(info, 'earningsGrowth', 0))
+    eps_growth = to_pct(safe_get(info, 'earningsQuarterlyGrowth', 0))
+    roe = to_pct(safe_get(info, 'returnOnEquity', 0))
+    pm = to_pct(safe_get(info, 'profitMargins', 0))
+    
+    # Revenue growth (max 30)
+    score += max(0, min(30, int(rev_growth * 1.5)))
+    
+    # Earnings growth (max 25)
+    if earn_growth: score += max(0, min(25, int(earn_growth)))
+    elif eps_growth: score += max(0, min(25, int(eps_growth)))
+    
+    # ROE (max 20) - high returns on equity
+    score += max(0, min(20, int(roe)))
+    
+    # Profit margin (max 15) - ability to scale profitably
+    score += max(0, min(15, int(pm * 0.75)))
+    
+    # Momentum bonus (max 10) - if price is up
+    if fair_value > price: score += 10
+    
+    return min(score, 100)
+
+
+def calculate_score_quality(info, price, fair_value):
+    """Quality + Moat scoring - emphasizes competitive advantages"""
+    score = 0
+    roic = to_pct(safe_get(info, 'returnOnEquity', 0))  # Proxy for ROIC
+    roa = to_pct(safe_get(info, 'returnOnAssets', 0))
+    pm = to_pct(safe_get(info, 'profitMargins', 0))
+    gm = to_pct(safe_get(info, 'grossMargins', 0))
+    fcf = safe_get(info, 'freeCashflow', 0)
+    market_cap = safe_get(info, 'marketCap', 0)
+    
+    # ROIC/ROE (max 25) - consistent high returns = moat
+    score += max(0, min(25, int(roic * 1.25)))
+    
+    # ROA (max 15)
+    score += max(0, min(15, int(roa)))
+    
+    # Gross margin (max 20) - pricing power
+    score += max(0, min(20, int(gm * 0.4)))
+    
+    # Operating/profit margin (max 20) - efficiency moat
+    score += max(0, min(20, int(pm)))
+    
+    # FCF consistency (max 20)
+    if fcf > 0 and market_cap > 0:
+        fcf_yield = (fcf / market_cap) * 100
+        score += max(0, min(20, int(fcf_yield * 2)))
+    
+    return min(score, 100)
+
+
+def calculate_score_dividend(info, price, fair_value):
+    """Dividend Safety scoring - emphasizes sustainable dividends"""
+    score = 0
+    div_yield = to_pct(safe_get(info, 'dividendYield', 0))
+    payout = to_pct(safe_get(info, 'payoutRatio', 0))
+    fcf = safe_get(info, 'freeCashflow', 0)
+    debt_equity = safe_get(info, 'debtToEquity', 0)
+    pm = to_pct(safe_get(info, 'profitMargins', 0))
+    
+    # Dividend yield (max 25) - 5%+ = max, 0% = 0
+    score += max(0, min(25, int(div_yield * 5)))
+    
+    # Payout ratio (max 25) - 30-60% ideal = max, <20% or >80% penalized
+    if 30 <= payout <= 60:
+        score += 25
+    elif 20 <= payout < 30 or 60 < payout <= 75:
+        score += 15
+    elif payout > 0 and payout < 80:
+        score += 10
+    
+    # FCF coverage (max 20) - can they afford dividends
+    if fcf > 0:
+        score += 20
+    
+    # Low debt (max 15) - safety buffer
+    if debt_equity >= 0: score += max(0, min(15, int((2 - debt_equity) * 10)))
+    else: score += 10
+    
+    # Profit margin (max 15) - stable earnings
+    score += max(0, min(15, int(pm * 0.75)))
+    
+    return min(score, 100)
+
+
+def get_score_for_algo(info, price, fair_value, algo):
+    """Get score based on selected algorithm"""
+    if algo == 'value':
+        return calculate_score_value(info, price, fair_value)
+    elif algo == 'growth':
+        return calculate_score_growth(info, price, fair_value)
+    elif algo == 'quality':
+        return calculate_score_quality(info, price, fair_value)
+    elif algo == 'dividend':
+        return calculate_score_dividend(info, price, fair_value)
+    else:
+        return calculate_score(info, price, fair_value)
+
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -84,6 +244,7 @@ class handler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         params = parse_qs(parsed.query)
         symbols_param = params.get('symbols', [''])[0]
+        algo = params.get('algo', ['default'])[0]
         
         if symbols_param:
             tickers = [s.strip().upper() for s in symbols_param.split(',')][:15]
@@ -123,7 +284,7 @@ class handler(BaseHTTPRequestHandler):
                     continue
                 
                 fair_value = calculate_fair_value(info, price)
-                score = calculate_score(info, price, fair_value)
+                score = get_score_for_algo(info, price, fair_value, algo)
                 upside = ((fair_value - price) / price * 100) if price > 0 else 0
                 
                 opportunities.append({

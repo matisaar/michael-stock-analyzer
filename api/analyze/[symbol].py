@@ -205,7 +205,8 @@ def calculate_rule1(info, price):
 
 
 def calculate_score(data):
-    """Calculate investment score with detailed point breakdown"""
+    """Calculate investment score with proportional scaling.
+    Instead of all-or-nothing, metrics earn points based on how well they perform."""
     score = 0
     checks = []
     
@@ -219,76 +220,107 @@ def calculate_score(data):
     ps_ratio = data.get('ps_ratio', 0) or 0
     fcf = data.get('fcf', 0) or 0
     
-    # ROA check (max 15)
+    # ROA check (max 15) - proportional scale
+    # Target: 15%+ = full points, scales down linearly to 0 at -5%
     roa_pct = to_pct(roa)
-    if roa_pct > 10:
-        score += 15
-        checks.append({'pass': True, 'text': f'ROA ({roa_pct:.1f}%) > 10%', 'points': 15, 'max': 15})
-    elif roa_pct > 5:
-        score += 7
-        checks.append({'pass': 'warn', 'text': f'ROA ({roa_pct:.1f}%) moderate', 'points': 7, 'max': 15})
+    roa_pts = max(0, min(15, int((roa_pct + 5) * 15 / 20)))  # -5% -> 0pts, 15% -> 15pts
+    score += roa_pts
+    if roa_pct >= 10:
+        checks.append({'pass': True, 'text': f'ROA ({roa_pct:.1f}%) excellent', 'points': roa_pts, 'max': 15})
+    elif roa_pct >= 5:
+        checks.append({'pass': 'warn', 'text': f'ROA ({roa_pct:.1f}%) decent', 'points': roa_pts, 'max': 15})
     else:
-        checks.append({'pass': False, 'text': f'ROA ({roa_pct:.1f}%) < 10%', 'points': 0, 'max': 15})
+        checks.append({'pass': False, 'text': f'ROA ({roa_pct:.1f}%) weak', 'points': roa_pts, 'max': 15})
     
-    # ROE check (max 15)
+    # ROE check (max 15) - proportional scale
+    # Target: 15%+ = full points, scales down to 0 at -5%
     roe_pct = to_pct(roe)
-    if roe_pct > 10:
-        score += 15
-        checks.append({'pass': True, 'text': f'ROE ({roe_pct:.1f}%) > 10%', 'points': 15, 'max': 15})
-    elif roe_pct > 5:
-        score += 7
-        checks.append({'pass': 'warn', 'text': f'ROE ({roe_pct:.1f}%) moderate', 'points': 7, 'max': 15})
+    roe_pts = max(0, min(15, int((roe_pct + 5) * 15 / 20)))
+    score += roe_pts
+    if roe_pct >= 10:
+        checks.append({'pass': True, 'text': f'ROE ({roe_pct:.1f}%) excellent', 'points': roe_pts, 'max': 15})
+    elif roe_pct >= 5:
+        checks.append({'pass': 'warn', 'text': f'ROE ({roe_pct:.1f}%) decent', 'points': roe_pts, 'max': 15})
     else:
-        checks.append({'pass': False, 'text': f'ROE ({roe_pct:.1f}%) < 10%', 'points': 0, 'max': 15})
+        checks.append({'pass': False, 'text': f'ROE ({roe_pct:.1f}%) weak', 'points': roe_pts, 'max': 15})
     
-    # Cash vs Debt (max 15)
-    if cash > 0 and cash >= debt:
+    # Cash vs Debt (max 15) - proportional based on coverage ratio
+    if debt > 0:
+        coverage = cash / debt if debt > 0 else 10  # cash/debt ratio
+        # 2x coverage = full points, 0x = 0 points
+        debt_pts = max(0, min(15, int(coverage * 7.5)))
+        score += debt_pts
+        if coverage >= 1:
+            checks.append({'pass': True, 'text': f'Cash covers {coverage:.1f}x debt', 'points': debt_pts, 'max': 15})
+        elif coverage >= 0.5:
+            checks.append({'pass': 'warn', 'text': f'Cash covers {coverage:.1f}x debt', 'points': debt_pts, 'max': 15})
+        else:
+            checks.append({'pass': False, 'text': f'Cash only {coverage:.1f}x debt', 'points': debt_pts, 'max': 15})
+    elif cash > 0:
         score += 15
-        checks.append({'pass': True, 'text': f'Cash (${format_number(cash)}) \u2265 Debt', 'points': 15, 'max': 15})
-    elif debt > 0:
-        checks.append({'pass': False, 'text': f'Debt (${format_number(debt)}) > Cash', 'points': 0, 'max': 15})
+        checks.append({'pass': True, 'text': f'Cash (${format_number(cash)}) & minimal debt', 'points': 15, 'max': 15})
     else:
         checks.append({'pass': 'warn', 'text': 'Cash/Debt data limited', 'points': 0, 'max': 15})
     
-    # Fair value (max 20)
+    # Fair value (max 20) - proportional based on upside
     if price > 0 and fair_value > 0:
         upside = ((fair_value - price) / price) * 100
+        # 50%+ upside = full 20pts, 0% = 0pts, negative = 0
+        value_pts = max(0, min(20, int(upside * 0.4)))
+        score += value_pts
         if upside > 30:
-            score += 20
-            checks.append({'pass': True, 'text': f'{upside:.0f}% undervalued', 'points': 20, 'max': 20})
+            checks.append({'pass': True, 'text': f'{upside:.0f}% undervalued', 'points': value_pts, 'max': 20})
         elif upside > 10:
-            score += 10
-            checks.append({'pass': 'warn', 'text': f'{upside:.0f}% below fair value', 'points': 10, 'max': 20})
+            checks.append({'pass': 'warn', 'text': f'{upside:.0f}% below fair value', 'points': value_pts, 'max': 20})
         elif upside > 0:
-            score += 5
-            checks.append({'pass': 'warn', 'text': 'Near fair value', 'points': 5, 'max': 20})
+            checks.append({'pass': 'warn', 'text': f'{upside:.0f}% near fair value', 'points': value_pts, 'max': 20})
         else:
             checks.append({'pass': False, 'text': f'Overvalued by {abs(upside):.0f}%', 'points': 0, 'max': 20})
     
-    # Profit margin (max 10)
+    # Profit margin (max 10) - proportional scale
+    # 20%+ = full points, scales to 0 at -5%
     pm_pct = to_pct(profit_margin)
-    if pm_pct > 15:
-        score += 10
-        checks.append({'pass': True, 'text': f'Strong margin ({pm_pct:.1f}%)', 'points': 10, 'max': 10})
-    elif pm_pct > 5:
-        score += 5
-        checks.append({'pass': 'warn', 'text': f'Margin ({pm_pct:.1f}%)', 'points': 5, 'max': 10})
+    pm_pts = max(0, min(10, int((pm_pct + 5) * 10 / 25)))
+    score += pm_pts
+    if pm_pct >= 15:
+        checks.append({'pass': True, 'text': f'Strong margin ({pm_pct:.1f}%)', 'points': pm_pts, 'max': 10})
+    elif pm_pct >= 5:
+        checks.append({'pass': 'warn', 'text': f'Margin ({pm_pct:.1f}%)', 'points': pm_pts, 'max': 10})
     elif pm_pct > 0:
-        checks.append({'pass': 'warn', 'text': f'Low margin ({pm_pct:.1f}%)', 'points': 0, 'max': 10})
+        checks.append({'pass': 'warn', 'text': f'Thin margin ({pm_pct:.1f}%)', 'points': pm_pts, 'max': 10})
     else:
-        checks.append({'pass': False, 'text': 'Negative margin', 'points': 0, 'max': 10})
+        checks.append({'pass': False, 'text': f'Negative margin ({pm_pct:.1f}%)', 'points': 0, 'max': 10})
     
-    # P/S ratio (max 10)
-    if ps_ratio > 0 and ps_ratio < 2:
+    # P/S ratio (max 10) - proportional (lower is better)
+    # P/S < 1 = full 10pts, P/S 5+ = 0pts
+    if ps_ratio > 0:
+        ps_pts = max(0, min(10, int((5 - ps_ratio) * 2.5)))
+        score += ps_pts
+        if ps_ratio < 1:
+            checks.append({'pass': True, 'text': f'P/S ({ps_ratio:.2f}x) very attractive', 'points': ps_pts, 'max': 10})
+        elif ps_ratio < 2:
+            checks.append({'pass': True, 'text': f'P/S ({ps_ratio:.2f}x) attractive', 'points': ps_pts, 'max': 10})
+        elif ps_ratio < 4:
+            checks.append({'pass': 'warn', 'text': f'P/S ({ps_ratio:.2f}x) moderate', 'points': ps_pts, 'max': 10})
+        else:
+            checks.append({'pass': False, 'text': f'P/S ({ps_ratio:.2f}x) expensive', 'points': ps_pts, 'max': 10})
+    
+    # FCF (max 15) - proportional based on FCF yield (FCF / market cap)
+    market_cap = data.get('market_cap', 0) or 0
+    if fcf > 0 and market_cap > 0:
+        fcf_yield = (fcf / market_cap) * 100
+        # 10%+ yield = full points, 0% = 0 points
+        fcf_pts = max(0, min(15, int(fcf_yield * 1.5)))
+        score += fcf_pts
+        if fcf_yield >= 5:
+            checks.append({'pass': True, 'text': f'Strong FCF yield ({fcf_yield:.1f}%)', 'points': fcf_pts, 'max': 15})
+        elif fcf_yield >= 2:
+            checks.append({'pass': True, 'text': f'Positive FCF yield ({fcf_yield:.1f}%)', 'points': fcf_pts, 'max': 15})
+        else:
+            checks.append({'pass': 'warn', 'text': f'Low FCF yield ({fcf_yield:.1f}%)', 'points': fcf_pts, 'max': 15})
+    elif fcf > 0:
         score += 10
-        checks.append({'pass': True, 'text': f'P/S ({ps_ratio:.2f}x) attractive', 'points': 10, 'max': 10})
-    elif ps_ratio > 0:
-        checks.append({'pass': 'warn', 'text': f'P/S ({ps_ratio:.2f}x)', 'points': 0, 'max': 10})
-    
-    # FCF (max 15)
-    if fcf > 0:
-        score += 15
-        checks.append({'pass': True, 'text': f'Positive FCF (${format_number(fcf)})', 'points': 15, 'max': 15})
+        checks.append({'pass': True, 'text': f'Positive FCF (${format_number(fcf)})', 'points': 10, 'max': 15})
     else:
         checks.append({'pass': False, 'text': 'Negative/no FCF', 'points': 0, 'max': 15})
     
