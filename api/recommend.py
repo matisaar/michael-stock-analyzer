@@ -448,6 +448,7 @@ class handler(BaseHTTPRequestHandler):
                     'symbol': ticker,
                     'name': safe_get(info, 'longName') or safe_get(info, 'shortName', ticker),
                     'sector': stock_sector,
+                    'industry': safe_get(info, 'industry', ''),
                     'price': round(price, 2),
                     'score': quality_score,
                     'upside': round(upside, 1),

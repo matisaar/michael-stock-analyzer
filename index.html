@@ -645,7 +645,7 @@ async function loadRecommendations() {
                 return '<div class="rec-card" onclick="analyze(\'' + r.symbol + '\')">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
                         '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (r.name || r.symbol) + '</h3>' +
-                        '<span style="color:#555;font-size:13px">' + r.symbol + ' • ' + (r.sector || '') + '</span></div>' +
+                        '<span style="color:#555;font-size:13px">' + r.symbol + ' • ' + (r.industry || r.sector || '') + '</span></div>' +
                         (r.has_moat ? '<span class="moat-badge">Moat</span>' : '') +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">' +
@@ -800,7 +800,7 @@ function displayDiscoverCards(picks) {
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
         return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
             '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3>' +
-            '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.sector || 'Stock') + '</span></div></div>' +
+            '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.industry || s.sector || 'Stock') + '</span></div></div>' +
             '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
             '<div class="badges"><span class="badge ' + upsideClass + '">' + arrow + ' ' + Math.abs(s.upside || 0).toFixed(0) + '%</span><span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div></div>' +
