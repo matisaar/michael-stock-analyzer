@@ -5,21 +5,30 @@ import urllib.parse
 import traceback
 
 def search_with_yfinance(query):
-    """Use yfinance.Search to find stocks matching a query."""
+    """Use yfinance.Search to find stocks matching a query. US exchanges only."""
     import yfinance as yf
     results = []
+    US_EXCHANGES = {'NMS', 'NYQ', 'NGM', 'NCM', 'ASE', 'PCX', 'BTS', 'NAS', 'NYSE', 'NASDAQ', 'AMEX', 'ARCA', 'BATS'}
     try:
-        search = yf.Search(query, max_results=10, news_count=0)
+        search = yf.Search(query, max_results=15, news_count=0)
         quotes = search.quotes if hasattr(search, 'quotes') else []
         for q in quotes:
             quote_type = q.get('quoteType', '')
-            if quote_type in ('EQUITY', 'ETF'):
-                results.append({
-                    'symbol': q.get('symbol', ''),
-                    'name': q.get('shortname') or q.get('longname') or q.get('symbol', ''),
-                    'exchange': q.get('exchange', ''),
-                    'type': quote_type,
-                })
+            exchange = q.get('exchange', '')
+            symbol = q.get('symbol', '')
+            # Skip non-equity/ETF, foreign exchanges, and tickers with dots (e.g. 398.F)
+            if quote_type not in ('EQUITY', 'ETF'):
+                continue
+            if exchange and exchange not in US_EXCHANGES:
+                continue
+            if '.' in symbol:
+                continue
+            results.append({
+                'symbol': symbol,
+                'name': q.get('shortname') or q.get('longname') or symbol,
+                'exchange': exchange,
+                'type': quote_type,
+            })
     except Exception as e:
         print(f"yf.Search error: {e}")
         traceback.print_exc()

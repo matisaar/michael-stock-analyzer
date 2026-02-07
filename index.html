@@ -215,10 +215,6 @@
         .rec-grid { display: grid; grid-template-columns: 1fr; gap: 10px; }
         .rec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; overflow: hidden; }
         .rec-card:active { transform: scale(0.98); }
-        .rec-card .reason { font-size: 12px; color: var(--green); margin-top: 8px; padding: 6px 10px; background: var(--green-muted); border-radius: 8px; display: none; }
-        .rec-card .match-type { display: none; }
-        .rec-card .match-type.sector_match { display: none; }
-        .rec-card .match-type.diversify { display: none; }
         .rec-card .r1-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
         .rec-card .r1-stat { font-size: 11px; color: #888; }
         .rec-card .r1-stat .val { font-weight: 600; color: #e8e8e8; }
@@ -603,9 +599,7 @@ async function loadRecommendations() {
         });
         const data = await resp.json();
         
-        if (data.profile) {
-            summary.innerHTML = '';
-        }
+        summary.innerHTML = '';
         
         if (data.recommendations && data.recommendations.length > 0) {
             grid.innerHTML = data.recommendations.map(function(r) {
