@@ -4,7 +4,10 @@
     { "source": "/api/tickers", "destination": "/api/tickers" },
     { "source": "/api/scan", "destination": "/api/scan" },
     { "source": "/api/quote/:symbol", "destination": "/api/quote/[symbol]" },
-    { "source": "/api/analyze/:symbol", "destination": "/api/analyze/[symbol]" },
+    {
+      "source": "/api/analyze/:symbol",
+      "destination": "/api/analyze/[symbol]"
+    },
     { "source": "/:symbol", "destination": "/index.html" }
   ]
 }
