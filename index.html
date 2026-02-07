@@ -662,9 +662,10 @@ async function loadWatchlistView() {
                     const scoreColor = s.score >= 60 ? '#22c55e' : s.score >= 40 ? '#f59e0b' : '#ef4444';
                     const scoreBg = s.score >= 60 ? 'rgba(34,197,94,0.12)' : s.score >= 40 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
                     
+                    var ct = cleanTicker(s.symbol, s.name);
                     return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
                         '<div class="wl-top">' +
-                            '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
+                            '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + ct + '</span></div>' +
                             '<div style="display:flex;align-items:center;gap:10px">' +
                                 '<div style="text-align:right"><div style="font-size:20px;font-weight:700">$' + s.price.toFixed(2) + '</div></div>' +
                                 '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button>' +
@@ -739,10 +740,11 @@ async function loadRecommendations() {
                 var circ = 2 * Math.PI * 11;
                 var off = circ - (r.score / 100) * circ;
                 
+                var ct = cleanTicker(r.symbol, r.name);
                 return '<div class="rec-card" onclick="analyze(\'' + r.symbol + '\')">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">' +
                         '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (r.name || r.symbol) + '</h3>' +
-                        '<span style="color:#555;font-size:13px">' + r.symbol + ' • ' + (r.industry || r.sector || '') + '</span></div>' +
+                        '<span style="color:#555;font-size:13px">' + ct + ' • ' + (r.industry || r.sector || '') + '</span></div>' +
                         (r.has_moat ? '<span class="moat-badge">Moat</span>' : '') +
                     '</div>' +
                     '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">' +
@@ -950,9 +952,10 @@ function appendDiscoverCards(picks) {
         function mcap(n) { if (!n) return 'N/A'; if (n >= 1e12) return '$' + (n/1e12).toFixed(1) + 'T'; if (n >= 1e9) return '$' + (n/1e9).toFixed(0) + 'B'; if (n >= 1e6) return '$' + (n/1e6).toFixed(0) + 'M'; return '$' + n; }
         var heartClass = isInWatchlist(s.symbol) ? 'card-save-btn saved' : 'card-save-btn';
         var heartIcon = isInWatchlist(s.symbol) ? '❤️' : '🤍';
+        var ct = cleanTicker(s.symbol, s.name);
         return '<div class="discover-card" onclick="analyze(\'' + s.symbol + '\')">' +
             '<div class="card-header"><div style="min-width:0"><h3>' + (s.name || s.symbol) + '</h3>' +
-            '<div class="ticker-row"><span class="ticker" style="color:#888">' + s.symbol + '</span><span class="sector-tag">' + (s.industry || s.sector || 'Stock') + '</span></div></div>' +
+            '<div class="ticker-row"><span class="ticker" style="color:#888">' + ct + '</span><span class="sector-tag">' + (s.industry || s.sector || 'Stock') + '</span></div></div>' +
             '<button class="' + heartClass + '" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '" data-sector="' + escapeAttr(s.sector) + '" data-industry="' + escapeAttr(s.industry || '') + '" data-score="' + s.score + '" data-price="' + (s.price||0) + '">' + heartIcon + '</button></div>' +
             '<div class="price-row"><span class="price">$' + (s.price || 0).toFixed(2) + '</span>' +
             '<div class="score-badge ' + scoreClass + '"><div class="score-ring-mini"><svg viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="11" stroke="' + scoreColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg></div><span class="score-num">' + s.score + '</span></div></div>' +
@@ -1028,6 +1031,20 @@ function displayAnalysis(data) {
 }
 
 // ========== HELPERS ==========
+function cleanTicker(symbol, name) {
+    // If symbol is ugly (numeric like 398.F, or has exchange suffix), derive a clean ticker
+    if (!symbol) return '';
+    var base = symbol.split('.')[0];
+    // If all digits (foreign exchange number), use company name abbreviation
+    if (/^\d+$/.test(base) && name) {
+        // Try to derive ticker from name: "Cricut, Inc." -> "CRCT", fallback to initials
+        var clean = name.replace(/[,.]| Inc| Corp| Ltd| Co| Group| Holdings| Class [A-Z]/gi, '').trim();
+        var words = clean.split(/\s+/).filter(function(w) { return w.length > 0; });
+        if (words.length === 1) return words[0].toUpperCase().slice(0, 4);
+        return words.map(function(w) { return w[0]; }).join('').toUpperCase().slice(0, 4);
+    }
+    return base.toUpperCase();
+}
 function fmtPct(v) { return v != null ? v.toFixed(1) + '%' : 'N/A'; }
 function fmtRatio(v, d) { return v != null ? v.toFixed(d || 1) + 'x' : 'N/A'; }
 function pctClass(v, good, warn) { if (v == null) return ''; return v > (good||10) ? 'good' : v > (warn||5) ? 'warn' : ''; }
@@ -1065,13 +1082,8 @@ function buildHeader(data) {
         checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span><span style="flex:1">' + c.text + '</span>' + (ptsText !== '' ? '<span class="' + ptsClass + '">' + ptsText + '</span>' : '') + '</li>';
     }
     
-    // Generate a clean logo text from symbol (handles foreign exchanges like 398.F)
-    var logoText = data.symbol.split('.')[0].slice(0,4);  // Take part before dot, then first 4 chars
-    if (logoText.match(/^\d+$/)) {
-        // If it's all numbers (like 398), use company name initials instead
-        var nameParts = (q.name || data.symbol).split(' ').filter(function(p) { return p.length > 0; });
-        logoText = nameParts.slice(0, 2).map(function(p) { return p[0]; }).join('').toUpperCase();
-    }
+    var ticker = cleanTicker(data.symbol, q.name);
+    var logoText = ticker.slice(0, 4);
     
     var topSection = 
         '<button class="back-btn" onclick="back()">← Back to all stocks</button>' +
@@ -1084,7 +1096,7 @@ function buildHeader(data) {
             '<div class="header-left">' +
                 '<div class="stock-logo">' + logoText + '</div>' +
                 '<div class="header-info"><h2>' + (q.name || data.symbol) + '</h2>' +
-                '<span class="meta">' + data.symbol + ' • ' + (q.industry || q.sector || '') + '</span></div>' +
+                '<span class="meta">' + ticker + ' • ' + (q.industry || q.sector || '') + '</span></div>' +
             '</div>' +
             '<div class="header-right" style="display:flex;align-items:center;gap:12px">' +
                 '<div>' +
