@@ -907,6 +907,14 @@ function buildHeader(data) {
         checklistHtml += '<li><span class="icon ' + iconClass + '">' + icon + '</span><span style="flex:1">' + c.text + '</span>' + (ptsText !== '' ? '<span class="' + ptsClass + '">' + ptsText + '</span>' : '') + '</li>';
     }
     
+    // Generate a clean logo text from symbol (handles foreign exchanges like 398.F)
+    var logoText = data.symbol.split('.')[0].slice(0,4);  // Take part before dot, then first 4 chars
+    if (logoText.match(/^\d+$/)) {
+        // If it's all numbers (like 398), use company name initials instead
+        var nameParts = (q.name || data.symbol).split(' ').filter(function(p) { return p.length > 0; });
+        logoText = nameParts.slice(0, 2).map(function(p) { return p[0]; }).join('').toUpperCase();
+    }
+    
     var topSection = 
         '<button class="back-btn" onclick="back()">← Back to all stocks</button>' +
         alertHtml +
@@ -916,7 +924,7 @@ function buildHeader(data) {
         '</div>' +
         '<div class="header-card">' +
             '<div class="header-left">' +
-                '<div class="stock-logo">' + data.symbol.slice(0,4) + '</div>' +
+                '<div class="stock-logo">' + logoText + '</div>' +
                 '<div class="header-info"><h2>' + (q.name || data.symbol) + '</h2>' +
                 '<span class="meta">' + data.symbol + ' • ' + (q.industry || q.sector || '') + '</span></div>' +
             '</div>' +
