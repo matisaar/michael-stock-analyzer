@@ -660,18 +660,24 @@ async function loadWatchlistView() {
                     const gainPct = savedPrice && savedPrice > 0 ? ((s.price - savedPrice) / savedPrice * 100) : null;
                     const scoreClass = s.score >= 60 ? 'high' : s.score >= 40 ? 'medium' : 'low';
                     const scoreColor = s.score >= 60 ? '#22c55e' : s.score >= 40 ? '#f59e0b' : '#ef4444';
-                    const circ = 2 * Math.PI * 11;
-                    const off = circ - (s.score / 100) * circ;
+                    const scoreBg = s.score >= 60 ? 'rgba(34,197,94,0.12)' : s.score >= 40 ? 'rgba(245,158,11,0.12)' : 'rgba(239,68,68,0.12)';
                     
                     return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
                         '<div class="wl-top">' +
                             '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
                             '<div style="display:flex;align-items:center;gap:10px">' +
-                            '<div class="score-badge ' + scoreClass + '"><div class="score-ring-mini"><svg viewBox="0 0 28 28"><circle class="bg" cx="14" cy="14" r="11"></circle><circle cx="14" cy="14" r="11" stroke="' + scoreColor + '" stroke-dasharray="' + circ + '" stroke-dashoffset="' + off + '" stroke-linecap="round"></circle></svg></div><span class="score-num">' + s.score + '</span></div>' +
-                            '<div style="text-align:right"><div style="font-size:20px;font-weight:700">$' + s.price.toFixed(2) + '</div></div>' +
-                            '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button></div>' +
+                                '<div style="text-align:right"><div style="font-size:20px;font-weight:700">$' + s.price.toFixed(2) + '</div></div>' +
+                                '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button>' +
+                            '</div>' +
                         '</div>' +
-                        (gainPct !== null ? '<div class="wl-saved-info">Since saved: <span style="color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</span> (from $' + savedPrice.toFixed(2) + ')</div>' : '') +
+                        '<div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">' +
+                            '<div style="display:flex;align-items:center;gap:8px">' +
+                                '<div style="font-size:24px;font-weight:800;color:' + scoreColor + '">' + s.score + '</div>' +
+                                '<div style="font-size:11px;color:#666;line-height:1.2">Investment<br>Score</div>' +
+                            '</div>' +
+                            '<div style="height:4px;flex:1;margin:0 14px;border-radius:2px;background:#1e1e1e;overflow:hidden"><div style="height:100%;width:' + s.score + '%;border-radius:2px;background:' + scoreColor + '"></div></div>' +
+                            (gainPct !== null ? '<div style="font-size:12px;color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</div>' : '') +
+                        '</div>' +
                     '</div>';
                 } else {
                     // No live data for this symbol
@@ -990,6 +996,7 @@ async function analyze(sym) {
         setLoadingText('Analyzing ' + tickerToAnalyze + '...');
     }
     
+    // Don't put raw foreign tickers in search bar - will update with name after analysis
     document.getElementById('searchInput').value = tickerToAnalyze;
     
     try {
@@ -999,6 +1006,9 @@ async function analyze(sym) {
         if (data.error) { showError(data.error); back(); return; }
         currentStockData = data;
         updateURL(data.symbol);
+        // Show company name in search bar instead of raw ticker
+        var displayName = (data.quote && data.quote.name) ? data.quote.name : data.symbol;
+        document.getElementById('searchInput').value = displayName;
         displayAnalysis(data);
     } catch (e) {
         document.getElementById('loading').style.display = 'none';

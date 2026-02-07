@@ -539,6 +539,7 @@ def build_stock_result(symbol, info, price):
         'ps_ratio': safe_get(info, 'priceToSalesTrailing12Months', 0),
         'fcf': safe_get(info, 'freeCashflow', 0),
         'eps': safe_get(info, 'trailingEps', 0),
+        'market_cap': safe_get(info, 'marketCap', 0),
     }
     
     # Calculate fair value with component tracking
