@@ -536,39 +536,75 @@ async function loadWatchlistView() {
         return '<div class="skeleton-card"><div class="skeleton skeleton-line w60"></div><div class="skeleton skeleton-line w40"></div><div class="skeleton skeleton-line tall w80"></div></div>';
     }).join('');
     
+    // Helper to render cached data (fallback)
+    function renderCachedData() {
+        grid.innerHTML = symbols.map(function(sym) {
+            var w = watchlistMap[sym];
+            var savedPrice = w.price_at_save;
+            return '<div class="watchlist-card" onclick="analyze(\'' + sym + '\')">' +
+                '<div class="wl-top">' +
+                    '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (w.name || sym) + '</h3><span style="color:#555;font-size:13px">' + sym + '</span></div>' +
+                    '<div style="display:flex;align-items:flex-start;gap:8px">' +
+                        (savedPrice ? '<div style="text-align:right"><div style="font-size:18px;font-weight:600;color:#888">Saved at $' + savedPrice.toFixed(2) + '</div></div>' : '') +
+                        '<button class="card-save-btn saved" data-heart="' + sym + '" data-name="' + escapeAttr(w.name || sym) + '">❤️</button>' +
+                    '</div>' +
+                '</div>' +
+                '<div style="font-size:12px;color:#666;margin-top:4px">Tap to load live data</div>' +
+            '</div>';
+        }).join('');
+    }
+    
     // Fetch live data for all saved stocks
     try {
-        const resp = await fetch(API_BASE + '/api/scan?symbols=' + symbols.join(','));
+        const resp = await fetch(API_BASE + '/api/scan?symbols=' + symbols.join(','), { timeout: 15000 });
+        if (!resp.ok) throw new Error('API error');
         const data = await resp.json();
         
         if (data.opportunities && data.opportunities.length > 0) {
-            grid.innerHTML = data.opportunities.map(function(s) {
-                const wlItem = watchlistMap[s.symbol] || {};
+            // Create a map for quick lookup
+            const liveDataMap = {};
+            data.opportunities.forEach(function(s) { liveDataMap[s.symbol] = s; });
+            
+            // Render all symbols, using live data when available, cached when not
+            grid.innerHTML = symbols.map(function(sym) {
+                const s = liveDataMap[sym];
+                const wlItem = watchlistMap[sym] || {};
                 const savedPrice = wlItem.price_at_save;
-                const gainPct = savedPrice && savedPrice > 0 ? ((s.price - savedPrice) / savedPrice * 100) : null;
-                const scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
                 
-                return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
-                    '<div class="wl-top">' +
-                        '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
-                        '<div style="display:flex;align-items:flex-start;gap:8px"><div style="text-align:right"><div style="font-size:22px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
-                        '<span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div>' +
-                        '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button></div>' +
-                    '</div>' +
-                    (gainPct !== null ? '<div class="wl-saved-info">Since saved: <span style="color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</span> (from $' + savedPrice.toFixed(2) + ')</div>' : '') +
-                '</div>';
+                if (s) {
+                    const gainPct = savedPrice && savedPrice > 0 ? ((s.price - savedPrice) / savedPrice * 100) : null;
+                    const scoreClass = s.score >= 60 ? 'score-high' : s.score >= 40 ? 'score-medium' : 'score-low';
+                    
+                    return '<div class="watchlist-card" onclick="analyze(\'' + s.symbol + '\')">' +
+                        '<div class="wl-top">' +
+                            '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (s.name || s.symbol) + '</h3><span style="color:#555;font-size:13px">' + s.symbol + '</span></div>' +
+                            '<div style="display:flex;align-items:flex-start;gap:8px"><div style="text-align:right"><div style="font-size:22px;font-weight:700">$' + s.price.toFixed(2) + '</div>' +
+                            '<span class="badge ' + scoreClass + '">Score: ' + s.score + '</span></div>' +
+                            '<button class="card-save-btn saved" data-heart="' + s.symbol + '" data-name="' + escapeAttr(s.name) + '">❤️</button></div>' +
+                        '</div>' +
+                        (gainPct !== null ? '<div class="wl-saved-info">Since saved: <span style="color:' + (gainPct >= 0 ? '#22c55e' : '#ef4444') + ';font-weight:600">' + (gainPct >= 0 ? '+' : '') + gainPct.toFixed(1) + '%</span> (from $' + savedPrice.toFixed(2) + ')</div>' : '') +
+                    '</div>';
+                } else {
+                    // No live data for this symbol
+                    return '<div class="watchlist-card" onclick="analyze(\'' + sym + '\')">' +
+                        '<div class="wl-top">' +
+                            '<div style="min-width:0"><h3 style="font-size:16px;margin-bottom:2px">' + (wlItem.name || sym) + '</h3><span style="color:#555;font-size:13px">' + sym + '</span></div>' +
+                            '<button class="card-save-btn saved" data-heart="' + sym + '" data-name="' + escapeAttr(wlItem.name || sym) + '">❤️</button>' +
+                        '</div>' +
+                        (savedPrice ? '<div class="wl-saved-info" style="color:#888">Saved at $' + savedPrice.toFixed(2) + '</div>' : '') +
+                    '</div>';
+                }
             }).join('');
         } else {
             // Show cached data without live prices
-            grid.innerHTML = symbols.map(function(sym) {
-                var w = watchlistMap[sym];
-                return '<div class="watchlist-card" onclick="analyze(\'' + sym + '\')">' +
-                    '<h3>' + (w.name || sym) + '</h3><span style="color:#555">' + sym + '</span>' +
-                '</div>';
-            }).join('');
+            renderCachedData();
         }
     } catch (e) {
-        grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">⚠️</div><p>Error loading live data. <button class="btn btn-secondary" style="margin-top:8px" onclick="loadWatchlistView()">Retry</button></p></div>';
+        console.error('Watchlist load error:', e);
+        // On error, show cached data with retry option instead of just error message
+        renderCachedData();
+        // Add a subtle retry banner at top
+        grid.insertAdjacentHTML('afterbegin', '<div style="grid-column:1/-1;background:#2a2a2a;padding:10px 14px;border-radius:8px;font-size:13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><span style="color:#888">⚠️ Couldn\'t load live prices</span><button class="btn btn-secondary" style="padding:4px 12px;font-size:12px" onclick="loadWatchlistView()">Retry</button></div>');
     }
 }
 
