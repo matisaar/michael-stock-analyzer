@@ -104,6 +104,57 @@ def calculate_sticker_price(info, price):
     }
 
 
+def calculate_fair_value_and_upside(info, price):
+    """Calculate fair value using the EXACT same logic as analyze API."""
+    eps = safe_get(info, 'trailingEps', 0)
+    pe = safe_get(info, 'trailingPE', 0)
+    forward_pe = safe_get(info, 'forwardPE', 0)
+    target_price = safe_get(info, 'targetMeanPrice', 0)
+    earnings_growth = info.get('earningsGrowth')
+    
+    fair_values = []
+    
+    if target_price and target_price > 0:
+        fair_values.append(target_price)
+    
+    if forward_pe and forward_pe > 0 and eps and eps > 0:
+        growth_pe = min(forward_pe * 1.2, 30)
+        fv = eps * growth_pe
+        fair_values.append(fv)
+    
+    # Growth-adjusted PE fair value (PEG-based)
+    if earnings_growth and float(earnings_growth) > 0 and eps and eps > 0:
+        eg = float(earnings_growth)
+        growth_pct = eg * 100 if eg < 1 else eg
+        fair_pe_from_growth = min(growth_pct * 1.0, 40)
+        fv = eps * fair_pe_from_growth
+        if fv > 0:
+            fair_values.append(fv)
+    
+    if pe and pe > 0 and pe < 25 and price > 0:
+        fv = price * 1.1
+        fair_values.append(fv)
+    elif pe and pe > 25 and price > 0:
+        fv = price * 0.95
+        fair_values.append(fv)
+    
+    if eps and eps > 0 and not fair_values:
+        sector = safe_get(info, 'sector', '')
+        if 'Technology' in str(sector):
+            mult = 25
+        elif 'Consumer' in str(sector):
+            mult = 20
+        else:
+            mult = 18
+        fv = eps * mult
+        fair_values.append(fv)
+    
+    fair_value = sum(fair_values) / len(fair_values) if fair_values else price
+    upside = ((fair_value - price) / price * 100) if price > 0 else 0
+    
+    return fair_value, upside
+
+
 def rule1_score(info, price):
     """Score a stock 0-100 using the same criteria as the analyze API.
     This ensures consistency between For You recommendations and stock details.
@@ -141,46 +192,20 @@ def rule1_score(info, price):
     if cash > 0 and cash >= debt:
         score += 15
 
-    # 4. Fair value / Undervalued (20 pts)
-    sticker_data = calculate_sticker_price(info, price)
-    mos_price = None
-    sticker_price = None
-    upside_for_display = 0
+    # 4. Fair value / Undervalued (20 pts) - use EXACT same calculation as analyze
+    fair_value, upside = calculate_fair_value_and_upside(info, price)
     
-    # Calculate fair value similar to analyze API
-    eps = safe_get(info, 'trailingEps', 0)
-    pe = safe_get(info, 'trailingPE', 0)
-    forward_pe = safe_get(info, 'forwardPE', 0)
-    target_price = safe_get(info, 'targetMeanPrice', 0)
-    earnings_growth = info.get('earningsGrowth')
-    
-    fair_values = []
-    if target_price and target_price > 0:
-        fair_values.append(target_price)
-    if forward_pe and forward_pe > 0 and eps and eps > 0:
-        fair_values.append(eps * min(forward_pe * 1.2, 30))
-    if earnings_growth and float(earnings_growth) > 0 and eps and eps > 0:
-        eg = float(earnings_growth)
-        gp = eg * 100 if eg < 1 else eg
-        fv = eps * min(gp, 40)
-        if fv > 0:
-            fair_values.append(fv)
-    
-    fair_value = sum(fair_values) / len(fair_values) if fair_values else price
-    
-    if price > 0 and fair_value > 0:
-        upside = ((fair_value - price) / price) * 100
-        upside_for_display = upside
-        if upside > 30:
-            score += 20
-        elif upside > 10:
-            score += 10
-        elif upside > 0:
-            score += 5
+    if upside > 30:
+        score += 20
+    elif upside > 10:
+        score += 10
+    elif upside > 0:
+        score += 5
 
-    if sticker_data:
-        mos_price = sticker_data['mos_price']
-        sticker_price = sticker_data['sticker']
+    # Also calculate sticker price for display
+    sticker_data = calculate_sticker_price(info, price)
+    mos_price = sticker_data['mos_price'] if sticker_data else None
+    sticker_price = sticker_data['sticker'] if sticker_data else None
 
     # 5. Profit margin (10 pts)
     pm = to_pct(info.get('profitMargins'))
@@ -220,7 +245,8 @@ def rule1_score(info, price):
         'sticker_price': sticker_price,
         'mos_price': mos_price,
         'growth_rate': sticker_data['growth_rate'] if sticker_data else None,
-        'upside': round(upside_for_display, 1),
+        'upside': round(upside, 1),
+        'fair_value': round(fair_value, 2),
     }
 
 
