@@ -1052,7 +1052,7 @@ function buildHeader(data) {
     
     var alertHtml = '';
     if (upside > 20) {
-        alertHtml = '<div class="alert"><span class="alert-icon">↑</span><div><h3>Opportunity Detected</h3><p>' + data.symbol + ' appears to be ' + upside.toFixed(0) + '% undervalued</p></div></div>';
+        alertHtml = '<div class="alert"><span class="alert-icon">↑</span><div><h3>Opportunity Detected</h3><p>' + (q.name || data.symbol) + ' appears to be ' + upside.toFixed(0) + '% undervalued</p></div></div>';
     }
     
     var checklistHtml = '';
